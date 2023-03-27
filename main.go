@@ -107,6 +107,8 @@ func main() {
 	}
 }
 
+var alreadyAttempted = make(map[string]bool)
+
 func importer(boost_address string, boost_port string, gql_port string, boost_api_key string, base_directory string, max_concurrent int) {
 	boost, err := NewBoostConnection(boost_address, boost_port, gql_port, boost_api_key)
 	if err != nil {
@@ -136,6 +138,12 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 	for i > 0 {
 		i = i - 1
 		deal := toImport[i]
+
+		// Don't attempt more than once
+		if alreadyAttempted[deal.PieceCid] {
+			continue
+		}
+		alreadyAttempted[deal.PieceCid] = true
 
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
 		if hasFailedDeals(otherDeals) {

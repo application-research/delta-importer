@@ -65,7 +65,7 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUu
 func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
 	graphqlRequest := graphql.NewRequest(`
 	{
-		deals(filter: {Checkpoint: Accepted, IsOffline: true}, limit: 300) {
+		deals(filter: {Checkpoint: Accepted, IsOffline: true}, limit: 1000) {
 			deals {
 				ID
 				Message
