@@ -113,17 +113,16 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		log.Fatal(err)
 	}
 
-	d := boost.GetDeals()
-	inProgress := d.InProgress()
+	inProgress := boost.GetDealsInPipeline()
 
 	if max_concurrent != 0 && len(inProgress) >= max_concurrent {
 		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), max_concurrent)
 		return
 	}
 
-	toImport := d.AwaitingImport()
+	toImport := boost.GetDealsAwaitingImport()
 
-	log.Debugf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
+	log.Printf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
 
 	if len(toImport) == 0 {
 		log.Debugf("nothing to do, no deals awaiting import")

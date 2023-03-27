@@ -57,15 +57,15 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUu
 		return false
 	}
 
-	log.Debugf("Offline deal import for v1.2.0 deal %s scheduled for execution \n", dealUuid)
+	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution \n", dealUuid)
 
 	return true
 }
 
-func (bc *BoostConnection) GetDeals() BoostDeals {
+func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
 	graphqlRequest := graphql.NewRequest(`
 	{
-		deals(query: "", limit: 9999999) {
+		deals(filter: {Checkpoint: Accepted, IsOffline: true}, limit: 300) {
 			deals {
 				ID
 				Message
@@ -84,35 +84,12 @@ func (bc *BoostConnection) GetDeals() BoostDeals {
 		panic(err)
 	}
 
-	return graphqlResponse.Deals.Deals
-}
-
-// Filter only deals that are currently in progress (in AP or PC1)
-func (d BoostDeals) InProgress() []Deal {
-	var beingSealed []Deal
-
-	for _, deal := range d {
-		// Only check:
-		// - Deals in PC1 phase
-		// - Deals that are "Adding to Sector" (in AddPiece)
-		if deal.Message == "Sealer: PreCommit1" || deal.Message == "Adding to Sector" {
-			beingSealed = append(beingSealed, deal)
-		}
-	}
-
-	return beingSealed
-}
-
-// Filter only deals that are waiting to be imported
-func (d BoostDeals) AwaitingImport() []Deal {
 	var toImport []Deal
 
-	for _, deal := range d {
+	for _, deal := range graphqlResponse.Deals.Deals {
 		// Only check:
-		// - Offline deals
-		// - Accepted deals (awaiting import)
 		// - Deals where the inbound path has not been set (has not been imported yet)
-		if deal.IsOffline && deal.Checkpoint == "Accepted" && deal.InboundFilePath == "" {
+		if deal.InboundFilePath == "" {
 			toImport = append(toImport, deal)
 		}
 	}
@@ -120,11 +97,38 @@ func (d BoostDeals) AwaitingImport() []Deal {
 	return toImport
 }
 
+func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
+	graphqlRequest := graphql.NewRequest(`
+	{
+		deals(filter: {Checkpoint: IndexedAndAnnounced}, limit: 2000) {
+			deals {
+				ID
+				Message
+			}
+		}
+	}
+	`)
+	var graphqlResponse Data
+	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+		panic(err)
+	}
+
+	var inPipeline []Deal
+	for _, deal := range graphqlResponse.Deals.Deals {
+		// Disregard deals that are complete (proving)
+		if deal.Message != "Sealer: Proving" {
+			inPipeline = append(inPipeline, deal)
+		}
+	}
+
+	return inPipeline
+}
+
 // Queries boost for deals that match a given CID - useful to check if there are other failed ones
 func (bc *BoostConnection) GetDealsForContent(cid string) []Deal {
 	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
-		deals(query: "%s", limit: 10) {
+		deals(query: "%s", limit: 5) {
 			deals {
 				ID
 				Message
