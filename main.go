@@ -147,7 +147,7 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
 		if hasFailedDeals(otherDeals) {
-			log.Debugf("skipping import of %s as there are failed deals for it", deal.PieceCid)
+			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 

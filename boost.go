@@ -98,7 +98,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
 }
 
 func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
-	graphqlRequest := graphql.NewRequest(`
+	graphqlRequestSealing := graphql.NewRequest(`
 	{
 		deals(filter: {Checkpoint: IndexedAndAnnounced}, limit: 2000) {
 			deals {
@@ -108,15 +108,37 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		}
 	}
 	`)
-	var graphqlResponse Data
-	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+	var graphqlResponseSealing Data
+	if err := bc.bgql.Run(context.Background(), graphqlRequestSealing, &graphqlResponseSealing); err != nil {
 		panic(err)
 	}
 
 	var inPipeline []Deal
-	for _, deal := range graphqlResponse.Deals.Deals {
+	for _, deal := range graphqlResponseSealing.Deals.Deals {
 		// Disregard deals that are complete (proving)
 		if deal.Message != "Sealer: Proving" {
+			inPipeline = append(inPipeline, deal)
+		}
+	}
+
+	// Also account for deals that are awaiting publish confirmation
+	graphqlRequestPublished := graphql.NewRequest(`
+	{
+		deals(filter: {Checkpoint: Published}, limit: 2000) {
+			deals {
+				ID
+				Message
+			}
+		}
+	}
+	`)
+	var graphqlResponsePublished Data
+	if err := bc.bgql.Run(context.Background(), graphqlRequestPublished, &graphqlResponsePublished); err != nil {
+		panic(err)
+	}
+
+	for _, deal := range graphqlResponsePublished.Deals.Deals {
+		if deal.Message == "Awaiting Publish Confirmation" {
 			inPipeline = append(inPipeline, deal)
 		}
 	}
