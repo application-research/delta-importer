@@ -107,23 +107,24 @@ func main() {
 	}
 }
 
+var alreadyAttempted = make(map[string]bool)
+
 func importer(boost_address string, boost_port string, gql_port string, boost_api_key string, base_directory string, max_concurrent int) {
 	boost, err := NewBoostConnection(boost_address, boost_port, gql_port, boost_api_key)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	d := boost.GetDeals()
-	inProgress := d.InProgress()
+	inProgress := boost.GetDealsInPipeline()
 
 	if max_concurrent != 0 && len(inProgress) >= max_concurrent {
 		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), max_concurrent)
 		return
 	}
 
-	toImport := d.AwaitingImport()
+	toImport := boost.GetDealsAwaitingImport()
 
-	log.Debugf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
+	log.Printf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
 
 	if len(toImport) == 0 {
 		log.Debugf("nothing to do, no deals awaiting import")
@@ -138,9 +139,15 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		i = i - 1
 		deal := toImport[i]
 
+		// Don't attempt more than once
+		if alreadyAttempted[deal.PieceCid] {
+			continue
+		}
+		alreadyAttempted[deal.PieceCid] = true
+
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
 		if hasFailedDeals(otherDeals) {
-			log.Debugf("skipping import of %s as there are failed deals for it", deal.PieceCid)
+			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 
