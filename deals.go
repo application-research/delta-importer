@@ -1,6 +1,11 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"regexp"
+
+	log "github.com/sirupsen/logrus"
+)
 
 func UnmarshalDeals(data []byte) (Deals, error) {
 	var r Deals
@@ -34,4 +39,26 @@ type Deal struct {
 	Checkpoint      string `json:"Checkpoint"`
 	InboundFilePath string `json:"InboundFilePath"`
 	Err             string `json:"Err"`
+}
+
+// checks if there are failed deals in a given array of deals
+func HasFailedDeals(ds []Deal) bool {
+	failed := false
+	re, err := regexp.Compile(`.*commp mismatch.*`)
+	if err != nil {
+		log.Error("could not compile regex: " + err.Error())
+		return false
+	}
+
+	for _, d := range ds {
+		isCommpMismatch := re.MatchString(d.Err)
+
+		if isCommpMismatch {
+			failed = true
+			break
+		}
+	}
+
+	return failed
+
 }

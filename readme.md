@@ -43,6 +43,24 @@ GLOBAL OPTIONS:
    --port value            1288 (default: 1288)
 ```
 
+
+## Modes
+Delta-Importer can be ran in three modes:
+
+1. **Default (Boost Scanning) Mode**: This is the default mode. 
+`--mode default // not required`
+In this mode, Delta Importer will scan Boost for deals awaiting import, and automatically match them to CAR files on the filesystem and import them.
+
+2. **Pull Mode - Dataset**
+`--mode pull-dataset`
+In this mode, the Delta Importer will request deals from the DDM self-service API per-dataset, before attempting to import them. 
+
+1. **Pull Mode - CID**
+`--mode pull-cid`
+In this mode, the Delta Importer will scan the filesystem for CAR files, and make requests to the DDM self-service API for each carfile.
+It will check Boost to ensure duplicate deals are not requested
+
+
 ## Example run
 The following command will import a deal every 240 seconds, until there are 80 deals currently in the AP/PC1 state. Then, it will stop untill some deals clear out. 
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +22,10 @@ func main() {
 	var boost_port = "1288"
 	var max_concurrent = 0
 	var interval = 0
+
+	var self_service bool = false
+	var ddm_url string
+	var ddm_token string
 
 	app := &cli.App{
 		Name: "Delta Importer",
@@ -68,6 +71,23 @@ func main() {
 				Required:    true,
 				Destination: &interval,
 			},
+			&cli.StringFlag{
+				Name:        "ddm-url",
+				Usage:       "https://ddm-api.delta.store/api/v1/self-service",
+				Destination: &ddm_url,
+			},
+			&cli.StringFlag{
+				Name:        "ddm-token",
+				Usage:       "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+				Destination: &ddm_token,
+			},
+			&cli.BoolFlag{
+				Name:        "self-service",
+				Usage:       "enable/disable self-service deal request mode",
+				DefaultText: "false",
+				Value:       false,
+				Destination: &self_service,
+			},
 			&cli.BoolFlag{
 				Name:        "debug",
 				Usage:       "set to enable debug logging output",
@@ -92,6 +112,12 @@ func main() {
 
 			if debug {
 				log.SetLevel(log.DebugLevel)
+			}
+
+			if self_service {
+				if ddm_url == "" && ddm_token == "" {
+					log.Fatalf("self-service mode requires ddm-url and ddm-token. see readme for info")
+				}
 			}
 
 			for {
@@ -146,17 +172,17 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		alreadyAttempted[deal.PieceCid] = true
 
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
-		if hasFailedDeals(otherDeals) {
+		if HasFailedDeals(otherDeals) {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 
-		filename := generateCarFileName(base_directory, deal.PieceCid, deal.ClientAddress)
+		filename := GenerateCarFileName(base_directory, deal.PieceCid, deal.ClientAddress)
 		if filename == "" {
 			continue
 		}
 
-		if !carExists(filename) {
+		if !CarExists(filename) {
 			continue
 		}
 
@@ -170,46 +196,4 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		boost.ImportCar(context.Background(), filename, id)
 		break
 	}
-}
-
-func carExists(path string) bool {
-	_, err := os.Stat(path)
-	if err != nil {
-		log.Tracef("error finding car file %s: %s", path, err)
-		return false
-	}
-	return true
-}
-
-// Mapping from client address -> dataset slug -> find in the folder
-func generateCarFileName(base_directory string, pieceCid string, sourceAddr string) string {
-	datasetSlug := viper.GetString(sourceAddr)
-	if datasetSlug == "" {
-		log.Errorf("unrecognized dataset from addr %s\n", sourceAddr)
-		return ""
-	}
-
-	return base_directory + "/" + datasetSlug + "/" + pieceCid + ".car"
-}
-
-// checks if there are failed deals in a given array of deals
-func hasFailedDeals(ds []Deal) bool {
-	failed := false
-	re, err := regexp.Compile(`.*commp mismatch.*`)
-	if err != nil {
-		log.Error("could not compile regex: " + err.Error())
-		return false
-	}
-
-	for _, d := range ds {
-		isCommpMismatch := re.MatchString(d.Err)
-
-		if isCommpMismatch {
-			failed = true
-			break
-		}
-	}
-
-	return failed
-
 }
