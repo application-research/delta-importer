@@ -15,20 +15,25 @@ type Dataset struct {
 	Dir     string `json:"dir"`
 }
 
-// Read the datasets file and return a slice of Dataset structs
-func ReadInDatasetsFromFile(fileName string) []Dataset {
+// Read the datasets file and return a map of Dataset structs keyed by their Address
+func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Fatalf("Error reading datasets file: %s", err)
+		log.Fatalf("error reading datasets file: %s", err)
 	}
 
 	var datasets []Dataset
 	err = json.Unmarshal(data, &datasets)
 	if err != nil {
-		log.Fatalf("Error unmarshalling datasets JSON:", err)
+		log.Fatalf("datasets file is in incorrect format: %v", err)
 	}
 
-	return datasets
+	datasetMap := make(map[string]Dataset)
+	for _, dataset := range datasets {
+		datasetMap[dataset.Address] = dataset
+	}
+
+	return datasetMap
 }
 
 // Returns a list of all the car files in a given directory

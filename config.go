@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/urfave/cli/v2"
 )
@@ -9,10 +10,10 @@ import (
 type Config struct {
 	BoostAddress     string
 	BoostAPIKey      string
+	BoostPort        string
+	BoostGqlPort     string
 	DatasetsFilename string
 	Debug            bool
-	GQLPort          string
-	BoostPort        string
 	MaxConcurrent    uint
 	Interval         uint
 	Mode             Mode
@@ -36,7 +37,7 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 		BoostAPIKey:      cctx.String("boost-auth-token"),
 		Debug:            cctx.Bool("debug"),
 		DatasetsFilename: cctx.String("datasets"),
-		GQLPort:          cctx.String("boost-gql-port"),
+		BoostGqlPort:     cctx.String("boost-gql-port"),
 		BoostPort:        cctx.String("boost-port"),
 		MaxConcurrent:    cctx.Uint("max_concurrent"),
 		Interval:         cctx.Uint("interval"),
@@ -68,6 +69,10 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 		if config.DDMURL == "" {
 			return config, errors.New("ddm-api must be supplied when mode is pull-cid or pull-dataset")
 		}
+	}
+
+	if config.Debug {
+		fmt.Printf("config: %+v", config)
 	}
 
 	return config, nil

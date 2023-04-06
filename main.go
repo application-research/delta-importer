@@ -15,57 +15,71 @@ func main() {
 		Name: "Delta Importer",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "boost-url",
-				Usage:    "192.168.1.1",
-				Required: true,
+				Name:        "boost-url",
+				Usage:       "192.168.1.1",
+				DefaultText: "http://localhost",
+				Value:       "http://localhost",
+				EnvVars:     []string{"BOOST_URL"},
 			},
 			&cli.StringFlag{
 				Name:     "boost-auth-token",
 				Usage:    "eyJ....XXX",
 				Required: true,
+				EnvVars:  []string{"BOOST_AUTH_TOKEN"},
 			},
 			&cli.StringFlag{
 				Name:        "boost-gql-port",
 				Usage:       "8080",
 				DefaultText: "8080",
+				Value:       "8080",
+				EnvVars:     []string{"BOOST_GQL_PORT"},
 			},
 			&cli.StringFlag{
 				Name:        "boost-port",
 				Usage:       "1288",
 				DefaultText: "1288",
+				Value:       "1288",
+				EnvVars:     []string{"BOOST_PORT"},
 			},
 			&cli.StringFlag{
 				Name:        "datasets",
 				Usage:       "filename for the datasets configuration file",
 				Value:       "datasets.json",
 				DefaultText: "datasets.json",
+				EnvVars:     []string{"DATASETS"},
 			},
 			&cli.IntFlag{
-				Name:  "max_concurrent",
-				Usage: "stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited.",
+				Name:    "max_concurrent",
+				Usage:   "stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited.",
+				EnvVars: []string{"MAX_CONCURRENT"},
 			},
 			&cli.IntFlag{
 				Name:     "interval",
 				Usage:    "interval, in seconds, to re-run the importer",
 				Required: true,
+				EnvVars:  []string{"INTERVAL"},
 			},
 			&cli.StringFlag{
-				Name:  "ddm-api",
-				Usage: "url of ddm api (required only for pull modes)",
+				Name:    "ddm-api",
+				Usage:   "url of ddm api (required only for pull modes)",
+				EnvVars: []string{"DDM_API"},
 			},
 			&cli.StringFlag{
-				Name:  "ddm-token",
-				Usage: "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+				Name:    "ddm-token",
+				Usage:   "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+				EnvVars: []string{"DDM_TOKEN"},
 			},
 			&cli.StringFlag{
 				Name:        "mode",
 				Usage:       "mode of operation (default | pull-dataset | pull-cid)",
 				Value:       "default",
 				DefaultText: "default",
+				EnvVars:     []string{"MODE"},
 			},
 			&cli.BoolFlag{
-				Name:  "debug",
-				Usage: "set to enable debug logging output",
+				Name:    "debug",
+				Usage:   "set to enable debug logging output",
+				EnvVars: []string{"DEBUG"},
 			},
 		},
 
@@ -82,11 +96,12 @@ func main() {
 			}
 
 			ds := ReadInDatasetsFromFile(cfg.DatasetsFilename)
+			log.Debugf("datasets: %+v", ds)
 
 			for {
-				log.Debugf("running import")
-				importer(boost_address, boost_port, gql_port, boost_api_key, base_directory, max_concurrent)
-				time.Sleep(time.Second * time.Duration(interval))
+				log.Debugf("running import...")
+				importer(cfg, ds)
+				time.Sleep(time.Second * time.Duration(cfg.Interval))
 			}
 		},
 	}
@@ -96,18 +111,32 @@ func main() {
 	}
 }
 
+func importer(cfg Config, datasets map[string]Dataset) {
+	switch cfg.Mode {
+	case ModePullDataset:
+		// importerPullDataset(cfg, datasets)
+	case ModePullCID:
+		// importerPullCid(cfg, datasets)
+	case ModeDefault:
+	default:
+		importerDefault(cfg, datasets)
+
+	}
+
+}
+
 var alreadyAttempted = make(map[string]bool)
 
-func importer(boost_address string, boost_port string, gql_port string, boost_api_key string, base_directory string, max_concurrent int) {
-	boost, err := NewBoostConnection(boost_address, boost_port, gql_port, boost_api_key)
+func importerDefault(cfg Config, datasets map[string]Dataset) {
+	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	inProgress := boost.GetDealsInPipeline()
 
-	if max_concurrent != 0 && len(inProgress) >= max_concurrent {
-		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), max_concurrent)
+	if cfg.MaxConcurrent != 0 && len(inProgress) >= int(cfg.MaxConcurrent) {
+		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
 		return
 	}
 
@@ -134,18 +163,26 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		}
 		alreadyAttempted[deal.PieceCid] = true
 
+		// Check to see if the client address is in the dataset map
+		thisDataset, ok := datasets[deal.ClientAddress]
+		if !ok {
+			log.Debugf("skipping import of %s as it is not in the datasets config", deal.PieceCid)
+			continue
+		}
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
 		if HasFailedDeals(otherDeals) {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 
-		filename := GenerateCarFileName(base_directory, deal.PieceCid, deal.ClientAddress)
+		filename := thisDataset.GenerateCarFileName(deal.PieceCid)
 		if filename == "" {
+			log.Debugf("could not find carfile name for dataset %s for CID %s", thisDataset.Dataset, deal.PieceCid)
 			continue
 		}
 
 		if !FileExists(filename) {
+			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, thisDataset.Dataset, deal.PieceCid)
 			continue
 		}
 
