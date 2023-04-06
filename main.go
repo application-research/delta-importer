@@ -7,118 +7,81 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
 
-var DATASET_MAP map[string]string
-
 func main() {
-	var boost_address string
-	var boost_api_key string
-	var base_directory string
-	var debug bool = false
-	var gql_port = "8080"
-	var boost_port = "1288"
-	var max_concurrent = 0
-	var interval = 0
-
-	var self_service bool = false
-	var ddm_url string
-	var ddm_token string
-
 	app := &cli.App{
 		Name: "Delta Importer",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "boost",
-				Usage:       "192.168.1.1",
-				Required:    true,
-				Destination: &boost_address,
+				Name:     "boost-url",
+				Usage:    "192.168.1.1",
+				Required: true,
 			},
 			&cli.StringFlag{
-				Name:        "key",
-				Usage:       "eyJ....XXX",
-				Required:    true,
-				Destination: &boost_api_key,
+				Name:     "boost-auth-token",
+				Usage:    "eyJ....XXX",
+				Required: true,
 			},
 			&cli.StringFlag{
-				Name:        "dir",
-				Usage:       "/home/filecoin/path/to/mount",
-				Required:    true,
-				Destination: &base_directory,
-			},
-			&cli.StringFlag{
-				Name:        "gql",
+				Name:        "boost-gql-port",
 				Usage:       "8080",
 				DefaultText: "8080",
-				Destination: &gql_port,
 			},
 			&cli.StringFlag{
-				Name:        "port",
+				Name:        "boost-port",
 				Usage:       "1288",
 				DefaultText: "1288",
-				Destination: &boost_port,
-			},
-			&cli.IntFlag{
-				Name:        "max_concurrent",
-				Usage:       "stop importing if # of deals in AP or PC1 are above this threshold. 0 = unlimited.",
-				Destination: &max_concurrent,
-			},
-			&cli.IntFlag{
-				Name:        "interval",
-				Usage:       "interval, in seconds, to re-run the importer",
-				Required:    true,
-				Destination: &interval,
 			},
 			&cli.StringFlag{
-				Name:        "ddm-url",
-				Usage:       "https://ddm-api.delta.store/api/v1/self-service",
-				Destination: &ddm_url,
+				Name:        "datasets",
+				Usage:       "filename for the datasets configuration file",
+				Value:       "datasets.json",
+				DefaultText: "datasets.json",
+			},
+			&cli.IntFlag{
+				Name:  "max_concurrent",
+				Usage: "stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited.",
+			},
+			&cli.IntFlag{
+				Name:     "interval",
+				Usage:    "interval, in seconds, to re-run the importer",
+				Required: true,
 			},
 			&cli.StringFlag{
-				Name:        "ddm-token",
-				Usage:       "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
-				Destination: &ddm_token,
+				Name:  "ddm-api",
+				Usage: "url of ddm api (required only for pull modes)",
+			},
+			&cli.StringFlag{
+				Name:  "ddm-token",
+				Usage: "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+			},
+			&cli.StringFlag{
+				Name:        "mode",
+				Usage:       "mode of operation (default | pull-dataset | pull-cid)",
+				Value:       "default",
+				DefaultText: "default",
 			},
 			&cli.BoolFlag{
-				Name:        "self-service",
-				Usage:       "enable/disable self-service deal request mode",
-				DefaultText: "false",
-				Value:       false,
-				Destination: &self_service,
-			},
-			&cli.BoolFlag{
-				Name:        "debug",
-				Usage:       "set to enable debug logging output",
-				Destination: &debug,
+				Name:  "debug",
+				Usage: "set to enable debug logging output",
 			},
 		},
 
 		Action: func(cctx *cli.Context) error {
-			log.Info("Starting Dataset Importer")
+			log.Info("Starting Delta Dataset Importer")
 
-			viper.AddConfigPath(".")
-			viper.SetConfigType("json")
-			viper.SetConfigName("datasets")
-
-			if err := viper.ReadInConfig(); err != nil {
-				if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-					log.Fatalf("missing config file datasets.json. see readme for info.")
-				} else {
-					log.Fatalf("config file could not be read: %s", err)
-				}
+			cfg, err := CreateConfig(cctx)
+			if err != nil {
+				return err
 			}
 
-			if debug {
+			if cfg.Debug {
 				log.SetLevel(log.DebugLevel)
 			}
 
-			if self_service {
-				if ddm_url == "" && ddm_token == "" {
-					log.Fatalf("self-service mode requires ddm-url and ddm-token. see readme for info")
-				}
-			}
+			ds := ReadInDatasetsFromFile(cfg.DatasetsFilename)
 
 			for {
 				log.Debugf("running import")
@@ -182,7 +145,7 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 			continue
 		}
 
-		if !CarExists(filename) {
+		if !FileExists(filename) {
 			continue
 		}
 
