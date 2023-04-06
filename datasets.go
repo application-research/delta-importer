@@ -30,6 +30,9 @@ func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 
 	datasetMap := make(map[string]Dataset)
 	for _, dataset := range datasets {
+		if _, exists := datasetMap[dataset.Address]; exists {
+			log.Fatalf("duplicate address '%s' found in datasets file", err)
+		}
 		datasetMap[dataset.Address] = dataset
 	}
 
