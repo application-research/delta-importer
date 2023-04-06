@@ -130,7 +130,8 @@ var alreadyAttempted = make(map[string]bool)
 func importerDefault(cfg Config, datasets map[string]Dataset) {
 	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("error creating boost connection: %s", err.Error())
+		return
 	}
 
 	inProgress := boost.GetDealsInPipeline()
