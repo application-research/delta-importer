@@ -117,12 +117,9 @@ func importer(cfg Config, datasets map[string]Dataset) {
 		// importerPullDataset(cfg, datasets)
 	case ModePullCID:
 		// importerPullCid(cfg, datasets)
-	case ModeDefault:
 	default:
 		importerDefault(cfg, datasets)
-
 	}
-
 }
 
 var alreadyAttempted = make(map[string]bool)
