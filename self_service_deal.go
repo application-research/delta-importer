@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -15,7 +16,12 @@ func NewDDMApi(baseUrl string, authKey string) *DDMApi {
 	return &DDMApi{baseUrl: baseUrl, authKey: authKey}
 }
 
+type SelfServiceResponse struct {
+	Cid string `json:"cid"`
+}
+
 // Request DDM for a deal for the provided dataset
+// returns the piece CID of the deal if successful
 func (d *DDMApi) RequestDealForDataset(dataset string) (string, error) {
 	resp, closer, err := d.getRequest("/by-dataset/" + dataset)
 
@@ -24,10 +30,17 @@ func (d *DDMApi) RequestDealForDataset(dataset string) (string, error) {
 	}
 	defer closer()
 
-	return string(resp), nil
+	var selfServiceResponse SelfServiceResponse
+	err = json.Unmarshal(resp, &selfServiceResponse)
+	if err != nil {
+		return "", fmt.Errorf("could not unmarshal response %s: %v", resp, err)
+	}
+
+	return selfServiceResponse.Cid, nil
 }
 
 // Request DDM for a deal for the provided cid
+// returns the piece CID of the deal if successful
 func (d *DDMApi) RequestDealForCid(cid string) (string, error) {
 	resp, closer, err := d.getRequest("/by-cid/" + cid)
 
@@ -36,7 +49,13 @@ func (d *DDMApi) RequestDealForCid(cid string) (string, error) {
 	}
 	defer closer()
 
-	return string(resp), nil
+	var selfServiceResponse SelfServiceResponse
+	err = json.Unmarshal(resp, &selfServiceResponse)
+	if err != nil {
+		return "", fmt.Errorf("could not unmarshal response %s: %v", resp, err)
+	}
+
+	return selfServiceResponse.Cid, nil
 }
 
 func (d *DDMApi) getRequest(url string) ([]byte, func() error, error) {
