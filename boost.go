@@ -13,9 +13,9 @@ import (
 )
 
 type BoostConnection struct {
-	bapi   bapi.BoostStruct
-	bgql   *graphql.Client
-	closer jsonrpc.ClientCloser
+	bapi  bapi.BoostStruct
+	bgql  *graphql.Client
+	close jsonrpc.ClientCloser
 }
 
 type BoostDeals []Deal
@@ -25,7 +25,7 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	ctx := context.Background()
 
 	var api bapi.BoostStruct
-	closer, err := jsonrpc.NewMergeClient(ctx, "http://"+boostAddress+":"+boostPort+"/rpc/v0", "Filecoin", []interface{}{&api.Internal, &api.CommonStruct.Internal}, headers)
+	close, err := jsonrpc.NewMergeClient(ctx, "http://"+boostAddress+":"+boostPort+"/rpc/v0", "Filecoin", []interface{}{&api.Internal, &api.CommonStruct.Internal}, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -33,16 +33,16 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	graphqlClient := graphql.NewClient("http://" + boostAddress + ":" + gqlPort + "/graphql/query")
 
 	bc := &BoostConnection{
-		bapi:   api,
-		bgql:   graphqlClient,
-		closer: closer,
+		bapi:  api,
+		bgql:  graphqlClient,
+		close: close,
 	}
 
 	return bc, nil
 }
 
 func (bc *BoostConnection) Close() {
-	bc.closer()
+	bc.close()
 }
 
 func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUuid uuid.UUID) bool {

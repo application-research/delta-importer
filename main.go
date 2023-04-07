@@ -112,25 +112,28 @@ func main() {
 }
 
 func importer(cfg Config, datasets map[string]Dataset) {
-	switch cfg.Mode {
-	case ModePullDataset:
-		// importerPullDataset(cfg, datasets)
-	case ModePullCID:
-		// importerPullCid(cfg, datasets)
-	default:
-		importerDefault(cfg, datasets)
-	}
-}
-
-var alreadyAttempted = make(map[string]bool)
-
-func importerDefault(cfg Config, datasets map[string]Dataset) {
+	// We construct a new Boost connection at each run of the importer, as this is resilient in case boost is down/restarts
+	// It will simply re-connect upon the next run of the importer
 	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
 	if err != nil {
 		log.Errorf("error creating boost connection: %s", err.Error())
 		return
 	}
+	defer boost.close()
 
+	switch cfg.Mode {
+	case ModePullDataset:
+		importerPullDataset(cfg, datasets, boost)
+	case ModePullCID:
+		importerPullCid(cfg, datasets, boost)
+	default:
+		importerDefault(cfg, datasets, boost)
+	}
+}
+
+var alreadyAttempted = make(map[string]bool)
+
+func importerDefault(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
 	inProgress := boost.GetDealsInPipeline()
 
 	if cfg.MaxConcurrent != 0 && len(inProgress) >= int(cfg.MaxConcurrent) {
@@ -194,4 +197,12 @@ func importerDefault(cfg Config, datasets map[string]Dataset) {
 		boost.ImportCar(context.Background(), filename, id)
 		break
 	}
+}
+
+func importerPullDataset(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
+
+}
+
+func importerPullCid(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
+
 }
