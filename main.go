@@ -84,7 +84,8 @@ func main() {
 		},
 
 		Action: func(cctx *cli.Context) error {
-			log.Info("Starting Delta Dataset Importer")
+			logo := `Δ 𝔻𝕖𝕝𝕥𝕒  𝕀𝕞𝕡𝕠𝕣𝕥𝕖𝕣`
+			log.Info(logo)
 
 			cfg, err := CreateConfig(cctx)
 			if err != nil {
@@ -200,7 +201,77 @@ func importerDefault(cfg Config, datasets map[string]Dataset, boost *BoostConnec
 }
 
 func importerPullDataset(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
+	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 
+	for _, ds := range datasets {
+		log.Debugf("requesting a deal for dataset %s", ds.Dataset)
+
+		pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
+		if err != nil {
+			log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
+			continue
+		}
+		if pieceCid == "" {
+			log.Debugf("no deal returned for dataset %s", ds.Dataset)
+			continue
+		}
+
+		// Successfully requested a deal - wait for it to be made with boost
+		// Start with a 10 second wait, then increase wait time and try again up to 30 seconds total
+
+		retryCount := 1
+		var readyToImport []Deal
+	whileLoop:
+		for {
+			if retryCount > 3 {
+				break whileLoop
+			}
+
+			time.Sleep(time.Second * 10 * time.Duration(retryCount))
+			// Check to see if the deal has been made
+			deal := boost.GetDealsForContent(pieceCid)
+			readyToImport = DealsReadyForImport(deal)
+
+			if len(readyToImport) > 0 {
+				log.Debugf("deal for dataset %s has been made with boost", ds.Dataset)
+				break whileLoop
+			} else {
+				log.Debugf("deal for dataset %s has not been made with boost yet", ds.Dataset)
+				retryCount++
+			}
+		}
+
+		if len(readyToImport) == 0 {
+			log.Debugf("deal for dataset %s has not been made with boost after 3 retries", ds.Dataset)
+			continue
+		}
+
+		// Deal has been made with boost - import it
+		// There may be several deals matching the pieceCid, but we only want to import one - take the first one
+		deal := readyToImport[0]
+		// alreadyAttempted[deal.PieceCid] = true
+
+		filename := ds.GenerateCarFileName(pieceCid)
+
+		if !FileExists(filename) {
+			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, pieceCid)
+			continue
+		}
+
+		id, err := uuid.Parse(deal.ID)
+		if err != nil {
+			log.Errorf("could not parse uuid " + deal.ID)
+			continue
+		}
+
+		succesfulImport := boost.ImportCar(context.Background(), filename, id)
+		if succesfulImport {
+			return
+		} else {
+			log.Debugf("error importing car file for dataset %s", ds.Dataset)
+			continue
+		}
+	}
 }
 
 func importerPullCid(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {

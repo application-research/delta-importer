@@ -60,5 +60,16 @@ func HasFailedDeals(ds []Deal) bool {
 	}
 
 	return failed
+}
 
+func DealsReadyForImport(ds []Deal) []Deal {
+	var toImport []Deal
+
+	for _, d := range ds {
+		if d.Checkpoint == "Accepted" && d.IsOffline {
+			toImport = append(toImport, d)
+		}
+	}
+
+	return toImport
 }
