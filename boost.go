@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	bapi "github.com/filecoin-project/boost/api"
 	jsonrpc "github.com/filecoin-project/go-jsonrpc"
@@ -176,4 +178,32 @@ func (bc *BoostConnection) GetDealsForContent(cid string) []Deal {
 	}
 
 	return graphqlResponse.Deals.Deals
+}
+
+// Repeatedly attempts to wait, then query for a CID, returning an error if not found after 3 retries
+// Use this after requesting a deal, to allow time for it to be made with Boost
+func (bc *BoostConnection) WaitForDeal(pieceCid string) ([]Deal, error) {
+	retryCount := 1
+	var readyToImport []Deal
+
+whileLoop:
+	for {
+		if retryCount > 3 {
+			return readyToImport, errors.New("deal not made after 3 retries")
+		}
+
+		time.Sleep(time.Second * 10 * time.Duration(retryCount))
+		// Check to see if the deal has been made
+		deal := bc.GetDealsForContent(pieceCid)
+		readyToImport = DealsReadyForImport(deal)
+
+		if len(readyToImport) > 0 {
+			break whileLoop
+		} else {
+			log.Debugf("deal for %d not seen in boost yet. retrying", pieceCid)
+			retryCount++
+		}
+	}
+
+	return readyToImport, nil
 }

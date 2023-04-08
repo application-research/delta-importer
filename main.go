@@ -230,41 +230,19 @@ func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		log.Debugf("no deal returned for dataset %s", ds.Dataset)
 		return false
 	}
-	// Successfully requested a deal - wait for it to be made with boost
-	// Start with a 10 second wait, then increase wait time and try again up to 30 seconds total
 
-	retryCount := 1
-	var readyToImport []Deal
-whileLoop:
-	for {
-		if retryCount > 3 {
-			break whileLoop
-		}
-
-		time.Sleep(time.Second * 10 * time.Duration(retryCount))
-		// Check to see if the deal has been made
-		deal := boost.GetDealsForContent(pieceCid)
-		readyToImport = DealsReadyForImport(deal)
-
-		if len(readyToImport) > 0 {
-			log.Debugf("deal for dataset %s has been made with boost", ds.Dataset)
-			break whileLoop
-		} else {
-			log.Debugf("deal for dataset %s has not been made with boost yet", ds.Dataset)
-			retryCount++
-		}
-	}
-
-	if len(readyToImport) == 0 {
-		log.Debugf("deal for dataset %s has not been made with boost after 3 retries", ds.Dataset)
+	// Successfully requested a deal - wait for it to show up in Boost
+	readyToImport, err := boost.WaitForDeal(pieceCid)
+	if err != nil {
+		log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
 		return false
 	}
+
+	// * Note: We don't need to check HasMismatchedCommPErrors here, as this should result in a newly requested deal. DDM should not allow multiple re-deals if it had been previously dealt
 
 	// Deal has been made with boost - import it
 	// There may be several deals matching the pieceCid, but we only want to import one - take the first one
 	deal := readyToImport[0]
-	// alreadyAttempted[deal.PieceCid] = true
-
 	filename := ds.GenerateCarFileName(pieceCid)
 
 	if !FileExists(filename) {
@@ -282,34 +260,79 @@ whileLoop:
 	if succesfulImport {
 		return true
 	} else {
-		log.Debugf("error importing car file for dataset %s", ds.Dataset)
 		return false
 	}
 }
 
 func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
-	carFiles := ds.CarFilePaths()
+	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+	carFilePaths := ds.CarFilePaths()
 
-	log.Println("carFiles", carFiles)
-
-	if len(carFiles) == 0 {
+	if len(carFilePaths) == 0 {
 		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
 		return false
 	}
 
-	log.Debugf("%d car files found for dataset %s", len(carFiles), ds.Dataset)
+	log.Debugf("%d car files found for dataset %s", len(carFilePaths), ds.Dataset)
 
-	// for _, carFile := range carFiles {
+	for _, carFilePath := range carFilePaths {
+		// Assume files are named as <cidFromFilename>.car
+		cidFromFilename := FileNameFromPath(carFilePath)
 
-	// pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
-	// if err != nil {
-	// 	log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
-	// 	return false
-	// }
-	// if pieceCid == "" {
-	// 	log.Debugf("no deal returned for dataset %s", ds.Dataset)
-	// 	return false
-	// }
-	return true
+		// Don't attempt any given carfile import more than once
+		if cidsAlreadyAttempted[cidFromFilename] {
+			continue
+		}
+		cidsAlreadyAttempted[cidFromFilename] = true
 
+		// See if we have failed this CID before with mismatched commP
+		otherDeals := boost.GetDealsForContent(cidFromFilename)
+		if HasMismatchedCommPErrors(otherDeals) {
+			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", cidFromFilename)
+			continue
+		}
+
+		pieceCid, err := ddm.RequestDealForCid(cidFromFilename)
+		if err != nil {
+			log.Debugf("error requesting deal for cid %s: %s", cidFromFilename, err.Error())
+			return false
+		}
+		if pieceCid == "" {
+			log.Debugf("no deal returned for dataset %s", ds.Dataset)
+			return false
+		}
+
+		// Successfully requested a deal - wait for it to show up in Boost
+		readyToImport, err := boost.WaitForDeal(pieceCid)
+		if err != nil {
+			log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
+			return false
+		}
+
+		// Deal has been made with boost - import it
+		// There may be several deals matching the pieceCid, but we only want to import one - take the first one
+		deal := readyToImport[0]
+
+		// This should not happen as we just read the file, but check anyway in case the file has been deleted very recently
+		if !FileExists(carFilePath) {
+			log.Debugf("could not find carfile %s for dataset %s for CID %s. it must have been deleted", carFilePath, ds.Dataset, pieceCid)
+			return false
+		}
+
+		id, err := uuid.Parse(deal.ID)
+		if err != nil {
+			log.Errorf("could not parse uuid " + deal.ID)
+			return false
+		}
+
+		succesfulImport := boost.ImportCar(context.Background(), carFilePath, id)
+		if succesfulImport {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	log.Debugf("attempted to import all carfiles for dataset %d, but none could be imported", ds.Dataset)
+	return false
 }
