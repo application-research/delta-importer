@@ -119,8 +119,8 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 
 	var inPipeline []Deal
 	for _, deal := range graphqlResponseSealing.Deals.Deals {
-		// Disregard deals that are complete (proving)
-		if deal.Message != "Sealer: Proving" {
+		// Disregard deals that are complete (proving), removed, or failed to terminate as they are not in the pipeline
+		if deal.Message != "Sealer: Proving" && deal.Message != "Sealer: Removed" && deal.Message != "Sealer: TerminateFailed" {
 			inPipeline = append(inPipeline, deal)
 		}
 	}
@@ -141,6 +141,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		panic(err)
 	}
 
+	// Add deals that are awaiting publish confirmation- they will soon start sealing
 	for _, deal := range graphqlResponsePublished.Deals.Deals {
 		if deal.Message == "Awaiting Publish Confirmation" {
 			inPipeline = append(inPipeline, deal)
