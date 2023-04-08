@@ -58,7 +58,7 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUu
 		return false
 	}
 
-	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution \n", dealUuid)
+	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution", dealUuid)
 
 	return true
 }

@@ -129,6 +129,7 @@ func importer(cfg Config, datasets map[string]Dataset) {
 		return
 	}
 
+	log.Debugf("found %d deals in sealing pipeline", len(inProgress))
 	successfulImport := false
 
 	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
@@ -164,7 +165,7 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		return false
 	}
 
-	log.Printf("%d deals awaiting import for dataset %s\n", len(toImport), ds.Dataset)
+	log.Debugf("%d deals awaiting import for dataset %s\n", len(toImport), ds.Dataset)
 
 	// Start with the last (oldest) deal
 	i := len(toImport)
