@@ -144,7 +144,7 @@ func importer(cfg Config, datasets map[string]Dataset) {
 		case ModePullDataset:
 			successfulImport = importerPullDataset(cfg, ds, boost)
 		case ModePullCID:
-			// successfulImport = importerPullCid(cfg, ds, boost)
+			successfulImport = importerPullCid(cfg, ds, boost)
 		default:
 			successfulImport = importerDefault(cfg, ds, boost)
 		}
@@ -165,7 +165,7 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		return false
 	}
 
-	log.Debugf("%d deals awaiting import for dataset %s\n", len(toImport), ds.Dataset)
+	log.Debugf("%d deals awaiting import for dataset %s", len(toImport), ds.Dataset)
 
 	// Start with the last (oldest) deal
 	i := len(toImport)
@@ -287,6 +287,29 @@ whileLoop:
 	}
 }
 
-func importerPullCid(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
+func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	carFiles := ds.CarFilePaths()
+
+	log.Println("carFiles", carFiles)
+
+	if len(carFiles) == 0 {
+		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
+		return false
+	}
+
+	log.Debugf("%d car files found for dataset %s", len(carFiles), ds.Dataset)
+
+	// for _, carFile := range carFiles {
+
+	// pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
+	// if err != nil {
+	// 	log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
+	// 	return false
+	// }
+	// if pieceCid == "" {
+	// 	log.Debugf("no deal returned for dataset %s", ds.Dataset)
+	// 	return false
+	// }
+	return true
 
 }
