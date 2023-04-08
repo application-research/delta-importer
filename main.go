@@ -122,34 +122,49 @@ func importer(cfg Config, datasets map[string]Dataset) {
 	}
 	defer boost.close()
 
-	switch cfg.Mode {
-	case ModePullDataset:
-		importerPullDataset(cfg, datasets, boost)
-	case ModePullCID:
-		importerPullCid(cfg, datasets, boost)
-	default:
-		importerDefault(cfg, datasets, boost)
-	}
-}
-
-var alreadyAttempted = make(map[string]bool)
-
-func importerDefault(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
 	inProgress := boost.GetDealsInPipeline()
 
 	if cfg.MaxConcurrent != 0 && len(inProgress) >= int(cfg.MaxConcurrent) {
-		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
+		log.Debugf("skipping import job as there are already %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
 		return
 	}
 
-	toImport := boost.GetDealsAwaitingImport()
+	successfulImport := false
 
-	log.Printf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
+	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
+	for _, ds := range datasets {
+		if ds.Skip {
+			continue
+		}
+
+		log.Debugf("searching for a deal for dataset %s", ds.Dataset)
+
+		switch cfg.Mode {
+		case ModePullDataset:
+			successfulImport = importerPullDataset(cfg, ds, boost)
+		case ModePullCID:
+			// successfulImport = importerPullCid(cfg, ds, boost)
+		default:
+			successfulImport = importerDefault(cfg, ds, boost)
+		}
+
+		if successfulImport {
+			break
+		}
+	}
+}
+
+var cidsAlreadyAttempted = make(map[string]bool)
+
+func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	toImport := boost.GetDealsAwaitingImport(ds.Address)
 
 	if len(toImport) == 0 {
-		log.Debugf("nothing to do, no deals awaiting import")
-		return
+		log.Debugf("skipping dataset %s : no deals awaiting import", ds.Dataset)
+		return false
 	}
+
+	log.Printf("%d deals awaiting import for dataset %s\n", len(toImport), ds.Dataset)
 
 	// Start with the last (oldest) deal
 	i := len(toImport)
@@ -160,101 +175,26 @@ func importerDefault(cfg Config, datasets map[string]Dataset, boost *BoostConnec
 		deal := toImport[i]
 
 		// Don't attempt more than once
-		if alreadyAttempted[deal.PieceCid] {
+		if cidsAlreadyAttempted[deal.PieceCid] {
 			continue
 		}
-		alreadyAttempted[deal.PieceCid] = true
+		cidsAlreadyAttempted[deal.PieceCid] = true
 
-		// Check to see if the client address is in the dataset map
-		thisDataset, ok := datasets[deal.ClientAddress]
-		if !ok {
-			log.Debugf("skipping import of %s as it is not in the datasets config", deal.PieceCid)
-			continue
-		}
+		// See if we have failed this CID before with mismatched commP
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
-		if HasFailedDeals(otherDeals) {
+		if HasMismatchedCommPErrors(otherDeals) {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 
-		filename := thisDataset.GenerateCarFileName(deal.PieceCid)
+		filename := ds.GenerateCarFileName(deal.PieceCid)
 		if filename == "" {
-			log.Debugf("could not find carfile name for dataset %s for CID %s", thisDataset.Dataset, deal.PieceCid)
+			log.Debugf("could not find carfile name for dataset %s for CID %s", ds.Dataset, deal.PieceCid)
 			continue
 		}
 
 		if !FileExists(filename) {
-			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, thisDataset.Dataset, deal.PieceCid)
-			continue
-		}
-
-		id, err := uuid.Parse(deal.ID)
-		if err != nil {
-			log.Errorf("could not parse uuid " + deal.ID)
-			continue
-		}
-
-		log.Debugf("importing uuid %v from %v\n", id, filename)
-		boost.ImportCar(context.Background(), filename, id)
-		break
-	}
-}
-
-func importerPullDataset(cfg Config, datasets map[string]Dataset, boost *BoostConnection) {
-	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
-
-	for _, ds := range datasets {
-		log.Debugf("requesting a deal for dataset %s", ds.Dataset)
-
-		pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
-		if err != nil {
-			log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
-			continue
-		}
-		if pieceCid == "" {
-			log.Debugf("no deal returned for dataset %s", ds.Dataset)
-			continue
-		}
-
-		// Successfully requested a deal - wait for it to be made with boost
-		// Start with a 10 second wait, then increase wait time and try again up to 30 seconds total
-
-		retryCount := 1
-		var readyToImport []Deal
-	whileLoop:
-		for {
-			if retryCount > 3 {
-				break whileLoop
-			}
-
-			time.Sleep(time.Second * 10 * time.Duration(retryCount))
-			// Check to see if the deal has been made
-			deal := boost.GetDealsForContent(pieceCid)
-			readyToImport = DealsReadyForImport(deal)
-
-			if len(readyToImport) > 0 {
-				log.Debugf("deal for dataset %s has been made with boost", ds.Dataset)
-				break whileLoop
-			} else {
-				log.Debugf("deal for dataset %s has not been made with boost yet", ds.Dataset)
-				retryCount++
-			}
-		}
-
-		if len(readyToImport) == 0 {
-			log.Debugf("deal for dataset %s has not been made with boost after 3 retries", ds.Dataset)
-			continue
-		}
-
-		// Deal has been made with boost - import it
-		// There may be several deals matching the pieceCid, but we only want to import one - take the first one
-		deal := readyToImport[0]
-		// alreadyAttempted[deal.PieceCid] = true
-
-		filename := ds.GenerateCarFileName(pieceCid)
-
-		if !FileExists(filename) {
-			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, pieceCid)
+			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, deal.PieceCid)
 			continue
 		}
 
@@ -266,11 +206,83 @@ func importerPullDataset(cfg Config, datasets map[string]Dataset, boost *BoostCo
 
 		succesfulImport := boost.ImportCar(context.Background(), filename, id)
 		if succesfulImport {
-			return
+			return true
 		} else {
 			log.Debugf("error importing car file for dataset %s", ds.Dataset)
-			continue
+			return false
 		}
+	}
+
+	log.Errorf("attempted all deals for for dataset %s, none could be imported", ds.Dataset)
+	return false
+}
+
+func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+
+	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
+	if err != nil {
+		log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
+		return false
+	}
+	if pieceCid == "" {
+		log.Debugf("no deal returned for dataset %s", ds.Dataset)
+		return false
+	}
+	// Successfully requested a deal - wait for it to be made with boost
+	// Start with a 10 second wait, then increase wait time and try again up to 30 seconds total
+
+	retryCount := 1
+	var readyToImport []Deal
+whileLoop:
+	for {
+		if retryCount > 3 {
+			break whileLoop
+		}
+
+		time.Sleep(time.Second * 10 * time.Duration(retryCount))
+		// Check to see if the deal has been made
+		deal := boost.GetDealsForContent(pieceCid)
+		readyToImport = DealsReadyForImport(deal)
+
+		if len(readyToImport) > 0 {
+			log.Debugf("deal for dataset %s has been made with boost", ds.Dataset)
+			break whileLoop
+		} else {
+			log.Debugf("deal for dataset %s has not been made with boost yet", ds.Dataset)
+			retryCount++
+		}
+	}
+
+	if len(readyToImport) == 0 {
+		log.Debugf("deal for dataset %s has not been made with boost after 3 retries", ds.Dataset)
+		return false
+	}
+
+	// Deal has been made with boost - import it
+	// There may be several deals matching the pieceCid, but we only want to import one - take the first one
+	deal := readyToImport[0]
+	// alreadyAttempted[deal.PieceCid] = true
+
+	filename := ds.GenerateCarFileName(pieceCid)
+
+	if !FileExists(filename) {
+		log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, pieceCid)
+		return false
+	}
+
+	id, err := uuid.Parse(deal.ID)
+	if err != nil {
+		log.Errorf("could not parse uuid " + deal.ID)
+		return false
+	}
+
+	succesfulImport := boost.ImportCar(context.Background(), filename, id)
+	if succesfulImport {
+		return true
+	} else {
+		log.Debugf("error importing car file for dataset %s", ds.Dataset)
+		return false
 	}
 }
 

@@ -13,6 +13,7 @@ type Dataset struct {
 	Dataset string `json:"dataset"`
 	Address string `json:"address"`
 	Dir     string `json:"dir"`
+	Skip    bool   `json:"skip,omitempty"`
 }
 
 // Read the datasets file and return a map of Dataset structs keyed by their Address

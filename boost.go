@@ -46,6 +46,7 @@ func (bc *BoostConnection) Close() {
 }
 
 func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUuid uuid.UUID) bool {
+	log.Debugf("importing uuid %v from %v\n", dealUuid, carFile)
 	// Deal proposal by deal uuid (v1.2.0 deal)
 	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile)
 	if err != nil {
@@ -62,10 +63,13 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUu
 	return true
 }
 
-func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
-	graphqlRequest := graphql.NewRequest(`
+// Get deals that are offiline, in the "accepted" state, and not yet imported
+// Clientaddress can be used to filter the deals, but is not required (will return all deals)
+// Note: limits to 100 deals
+func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDeals {
+	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
-		deals(filter: {Checkpoint: Accepted, IsOffline: true}, limit: 1000) {
+		deals(filter: {Checkpoint: Accepted, IsOffline: true}, query: "%s", limit: 100) {
 			deals {
 				ID
 				Message
@@ -78,7 +82,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
 			}
 		}
 	}
-	`)
+	`, clientAddress))
 	var graphqlResponse Data
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 		panic(err)

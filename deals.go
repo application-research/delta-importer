@@ -42,7 +42,7 @@ type Deal struct {
 }
 
 // checks if there are failed deals in a given array of deals
-func HasFailedDeals(ds []Deal) bool {
+func HasMismatchedCommPErrors(ds []Deal) bool {
 	failed := false
 	re, err := regexp.Compile(`.*commp mismatch.*`)
 	if err != nil {
