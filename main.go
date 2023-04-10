@@ -12,7 +12,8 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name: "Delta Importer",
+		Name:  "Delta Importer",
+		Usage: "A tool to automate the ingestion of offline/import deals into boost",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "boost-url",
@@ -134,7 +135,7 @@ func importer(cfg Config, datasets map[string]Dataset) {
 
 	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
 	for _, ds := range datasets {
-		if ds.Skip {
+		if ds.Ignore {
 			continue
 		}
 
@@ -267,6 +268,11 @@ func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) bool {
 func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 	carFilePaths := ds.CarFilePaths()
+
+	// TODO: Lookup which deals are already present in Boost, and don't request them again
+	// note: it will still work without doing this, but will require multiple retries as it goes through the directory and requests deals for each CID
+	// we can query Boost for all deals from this address, and ignore CIDs that are already present.
+	// This should drastically improve performance in PullCID mode.
 
 	if len(carFilePaths) == 0 {
 		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
