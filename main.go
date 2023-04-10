@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -10,10 +11,15 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var Commit string
+var Version string
+
 func main() {
+
 	app := &cli.App{
-		Name:  "Delta Importer",
-		Usage: "A tool to automate the ingestion of offline/import deals into boost",
+		Name:    "Delta Importer",
+		Usage:   "A tool to automate the ingestion of offline/import deals into boost",
+		Version: fmt.Sprintf("%s+git.%s\n", Version, Commit),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "boost-url",
