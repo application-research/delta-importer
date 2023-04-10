@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	bapi "github.com/filecoin-project/boost/api"
 	jsonrpc "github.com/filecoin-project/go-jsonrpc"
@@ -13,9 +15,9 @@ import (
 )
 
 type BoostConnection struct {
-	bapi   bapi.BoostStruct
-	bgql   *graphql.Client
-	closer jsonrpc.ClientCloser
+	bapi  bapi.BoostStruct
+	bgql  *graphql.Client
+	close jsonrpc.ClientCloser
 }
 
 type BoostDeals []Deal
@@ -25,7 +27,7 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	ctx := context.Background()
 
 	var api bapi.BoostStruct
-	closer, err := jsonrpc.NewMergeClient(ctx, "http://"+boostAddress+":"+boostPort+"/rpc/v0", "Filecoin", []interface{}{&api.Internal, &api.CommonStruct.Internal}, headers)
+	close, err := jsonrpc.NewMergeClient(ctx, "http://"+boostAddress+":"+boostPort+"/rpc/v0", "Filecoin", []interface{}{&api.Internal, &api.CommonStruct.Internal}, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -33,19 +35,20 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	graphqlClient := graphql.NewClient("http://" + boostAddress + ":" + gqlPort + "/graphql/query")
 
 	bc := &BoostConnection{
-		bapi:   api,
-		bgql:   graphqlClient,
-		closer: closer,
+		bapi:  api,
+		bgql:  graphqlClient,
+		close: close,
 	}
 
 	return bc, nil
 }
 
 func (bc *BoostConnection) Close() {
-	bc.closer()
+	bc.close()
 }
 
 func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUuid uuid.UUID) bool {
+	log.Debugf("importing uuid %v from %v", dealUuid, carFile)
 	// Deal proposal by deal uuid (v1.2.0 deal)
 	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile)
 	if err != nil {
@@ -57,15 +60,18 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUu
 		return false
 	}
 
-	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution \n", dealUuid)
+	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution", dealUuid)
 
 	return true
 }
 
-func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
-	graphqlRequest := graphql.NewRequest(`
+// Get deals that are offiline, in the "accepted" state, and not yet imported
+// Clientaddress can be used to filter the deals, but is not required (will return all deals)
+// Note: limits to 100 deals
+func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDeals {
+	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
-		deals(filter: {Checkpoint: Accepted, IsOffline: true}, limit: 1000) {
+		deals(filter: {Checkpoint: Accepted, IsOffline: true}, query: "%s", limit: 100) {
 			deals {
 				ID
 				Message
@@ -78,7 +84,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport() BoostDeals {
 			}
 		}
 	}
-	`)
+	`, clientAddress))
 	var graphqlResponse Data
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 		panic(err)
@@ -115,8 +121,8 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 
 	var inPipeline []Deal
 	for _, deal := range graphqlResponseSealing.Deals.Deals {
-		// Disregard deals that are complete (proving)
-		if deal.Message != "Sealer: Proving" {
+		// Disregard deals that are complete (proving), removed, or failed to terminate as they are not in the pipeline
+		if deal.Message != "Sealer: Proving" && deal.Message != "Sealer: Removed" && deal.Message != "Sealer: TerminateFailed" {
 			inPipeline = append(inPipeline, deal)
 		}
 	}
@@ -137,6 +143,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		panic(err)
 	}
 
+	// Add deals that are awaiting publish confirmation- they will soon start sealing
 	for _, deal := range graphqlResponsePublished.Deals.Deals {
 		if deal.Message == "Awaiting Publish Confirmation" {
 			inPipeline = append(inPipeline, deal)
@@ -171,4 +178,32 @@ func (bc *BoostConnection) GetDealsForContent(cid string) []Deal {
 	}
 
 	return graphqlResponse.Deals.Deals
+}
+
+// Repeatedly attempts to wait, then query for a CID, returning an error if not found after 3 retries
+// Use this after requesting a deal, to allow time for it to be made with Boost
+func (bc *BoostConnection) WaitForDeal(pieceCid string) ([]Deal, error) {
+	retryCount := 1
+	var readyToImport []Deal
+
+whileLoop:
+	for {
+		if retryCount > 3 {
+			return readyToImport, errors.New("deal not made after 3 retries")
+		}
+
+		time.Sleep(time.Second * 10 * time.Duration(retryCount))
+		// Check to see if the deal has been made
+		deal := bc.GetDealsForContent(pieceCid)
+		readyToImport = DealsReadyForImport(deal)
+
+		if len(readyToImport) > 0 {
+			break whileLoop
+		} else {
+			log.Debugf("deal for %d not seen in boost yet. retrying", pieceCid)
+			retryCount++
+		}
+	}
+
+	return readyToImport, nil
 }

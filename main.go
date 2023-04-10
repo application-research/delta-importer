@@ -2,102 +2,114 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
 
-var DATASET_MAP map[string]string
+var Commit string
+var Version string
 
 func main() {
-	var boost_address string
-	var boost_api_key string
-	var base_directory string
-	var debug bool = false
-	var gql_port = "8080"
-	var boost_port = "1288"
-	var max_concurrent = 0
-	var interval = 0
 
 	app := &cli.App{
-		Name: "Delta Importer",
+		Name:    "Delta Importer",
+		Usage:   "A tool to automate the ingestion of offline/import deals into boost",
+		Version: fmt.Sprintf("%s+git.%s\n", Version, Commit),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "boost",
+				Name:        "boost-url",
 				Usage:       "192.168.1.1",
-				Required:    true,
-				Destination: &boost_address,
+				DefaultText: "http://localhost",
+				Value:       "http://localhost",
+				EnvVars:     []string{"BOOST_URL"},
 			},
 			&cli.StringFlag{
-				Name:        "key",
-				Usage:       "eyJ....XXX",
-				Required:    true,
-				Destination: &boost_api_key,
+				Name:     "boost-auth-token",
+				Usage:    "eyJ....XXX",
+				Required: true,
+				EnvVars:  []string{"BOOST_AUTH_TOKEN"},
 			},
 			&cli.StringFlag{
-				Name:        "dir",
-				Usage:       "/home/filecoin/path/to/mount",
-				Required:    true,
-				Destination: &base_directory,
-			},
-			&cli.StringFlag{
-				Name:        "gql",
+				Name:        "boost-gql-port",
 				Usage:       "8080",
 				DefaultText: "8080",
-				Destination: &gql_port,
+				Value:       "8080",
+				EnvVars:     []string{"BOOST_GQL_PORT"},
 			},
 			&cli.StringFlag{
-				Name:        "port",
+				Name:        "boost-port",
 				Usage:       "1288",
 				DefaultText: "1288",
-				Destination: &boost_port,
+				Value:       "1288",
+				EnvVars:     []string{"BOOST_PORT"},
+			},
+			&cli.StringFlag{
+				Name:        "datasets",
+				Usage:       "filename for the datasets configuration file",
+				Value:       "datasets.json",
+				DefaultText: "datasets.json",
+				EnvVars:     []string{"DATASETS"},
 			},
 			&cli.IntFlag{
-				Name:        "max_concurrent",
-				Usage:       "stop importing if # of deals in AP or PC1 are above this threshold. 0 = unlimited.",
-				Destination: &max_concurrent,
+				Name:    "max_concurrent",
+				Usage:   "stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited.",
+				EnvVars: []string{"MAX_CONCURRENT"},
 			},
 			&cli.IntFlag{
-				Name:        "interval",
-				Usage:       "interval, in seconds, to re-run the importer",
-				Required:    true,
-				Destination: &interval,
+				Name:     "interval",
+				Usage:    "interval, in seconds, to re-run the importer",
+				Required: true,
+				EnvVars:  []string{"INTERVAL"},
+			},
+			&cli.StringFlag{
+				Name:    "ddm-api",
+				Usage:   "url of ddm api (required only for pull modes)",
+				EnvVars: []string{"DDM_API"},
+			},
+			&cli.StringFlag{
+				Name:    "ddm-token",
+				Usage:   "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+				EnvVars: []string{"DDM_TOKEN"},
+			},
+			&cli.StringFlag{
+				Name:        "mode",
+				Usage:       "mode of operation (default | pull-dataset | pull-cid)",
+				Value:       "default",
+				DefaultText: "default",
+				EnvVars:     []string{"MODE"},
 			},
 			&cli.BoolFlag{
-				Name:        "debug",
-				Usage:       "set to enable debug logging output",
-				Destination: &debug,
+				Name:    "debug",
+				Usage:   "set to enable debug logging output",
+				EnvVars: []string{"DEBUG"},
 			},
 		},
 
 		Action: func(cctx *cli.Context) error {
-			log.Info("Starting Dataset Importer")
+			logo := `Δ 𝔻𝕖𝕝𝕥𝕒  𝕀𝕞𝕡𝕠𝕣𝕥𝕖𝕣`
+			log.Info(logo)
 
-			viper.AddConfigPath(".")
-			viper.SetConfigType("json")
-			viper.SetConfigName("datasets")
-
-			if err := viper.ReadInConfig(); err != nil {
-				if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-					log.Fatalf("missing config file datasets.json. see readme for info.")
-				} else {
-					log.Fatalf("config file could not be read: %s", err)
-				}
+			cfg, err := CreateConfig(cctx)
+			if err != nil {
+				return err
 			}
 
-			if debug {
+			if cfg.Debug {
 				log.SetLevel(log.DebugLevel)
 			}
 
+			ds := ReadInDatasetsFromFile(cfg.DatasetsFilename)
+			log.Debugf("datasets: %+v", ds)
+
 			for {
-				log.Debugf("running import")
-				importer(boost_address, boost_port, gql_port, boost_api_key, base_directory, max_concurrent)
-				time.Sleep(time.Second * time.Duration(interval))
+				log.Debugf("running import...")
+				importer(cfg, ds)
+				time.Sleep(time.Second * time.Duration(cfg.Interval))
 			}
 		},
 	}
@@ -107,29 +119,60 @@ func main() {
 	}
 }
 
-var alreadyAttempted = make(map[string]bool)
-
-func importer(boost_address string, boost_port string, gql_port string, boost_api_key string, base_directory string, max_concurrent int) {
-	boost, err := NewBoostConnection(boost_address, boost_port, gql_port, boost_api_key)
+func importer(cfg Config, datasets map[string]Dataset) {
+	// We construct a new Boost connection at each run of the importer, as this is resilient in case boost is down/restarts
+	// It will simply re-connect upon the next run of the importer
+	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("error creating boost connection: %s", err.Error())
+		return
 	}
+	defer boost.close()
 
 	inProgress := boost.GetDealsInPipeline()
 
-	if max_concurrent != 0 && len(inProgress) >= max_concurrent {
-		log.Debugf("skipping import as there are %d deals in progress (max_concurrent is %d)", len(inProgress), max_concurrent)
+	if cfg.MaxConcurrent != 0 && len(inProgress) >= int(cfg.MaxConcurrent) {
+		log.Debugf("skipping import job as there are already %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
 		return
 	}
 
-	toImport := boost.GetDealsAwaitingImport()
+	log.Debugf("found %d deals in sealing pipeline", len(inProgress))
+	successfulImport := false
 
-	log.Printf("%d deals awaiting import and %d deals in progress\n", len(toImport), len(inProgress))
+	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
+	for _, ds := range datasets {
+		if ds.Ignore {
+			continue
+		}
+
+		log.Debugf("searching for a deal for dataset %s", ds.Dataset)
+
+		switch cfg.Mode {
+		case ModePullDataset:
+			successfulImport = importerPullDataset(cfg, ds, boost)
+		case ModePullCID:
+			successfulImport = importerPullCid(cfg, ds, boost)
+		default:
+			successfulImport = importerDefault(cfg, ds, boost)
+		}
+
+		if successfulImport {
+			break
+		}
+	}
+}
+
+var cidsAlreadyAttempted = make(map[string]bool)
+
+func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	toImport := boost.GetDealsAwaitingImport(ds.Address)
 
 	if len(toImport) == 0 {
-		log.Debugf("nothing to do, no deals awaiting import")
-		return
+		log.Debugf("skipping dataset %s : no deals awaiting import", ds.Dataset)
+		return false
 	}
+
+	log.Debugf("%d deals awaiting import for dataset %s", len(toImport), ds.Dataset)
 
 	// Start with the last (oldest) deal
 	i := len(toImport)
@@ -140,23 +183,26 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 		deal := toImport[i]
 
 		// Don't attempt more than once
-		if alreadyAttempted[deal.PieceCid] {
+		if cidsAlreadyAttempted[deal.PieceCid] {
 			continue
 		}
-		alreadyAttempted[deal.PieceCid] = true
+		cidsAlreadyAttempted[deal.PieceCid] = true
 
+		// See if we have failed this CID before with mismatched commP
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
-		if hasFailedDeals(otherDeals) {
+		if HasMismatchedCommPErrors(otherDeals) {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
 
-		filename := generateCarFileName(base_directory, deal.PieceCid, deal.ClientAddress)
+		filename := ds.GenerateCarFileName(deal.PieceCid)
 		if filename == "" {
+			log.Debugf("could not find carfile name for dataset %s for CID %s", ds.Dataset, deal.PieceCid)
 			continue
 		}
 
-		if !carExists(filename) {
+		if !FileExists(filename) {
+			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, deal.PieceCid)
 			continue
 		}
 
@@ -166,50 +212,139 @@ func importer(boost_address string, boost_port string, gql_port string, boost_ap
 			continue
 		}
 
-		log.Debugf("importing uuid %v from %v\n", id, filename)
-		boost.ImportCar(context.Background(), filename, id)
-		break
-	}
-}
-
-func carExists(path string) bool {
-	_, err := os.Stat(path)
-	if err != nil {
-		log.Tracef("error finding car file %s: %s", path, err)
-		return false
-	}
-	return true
-}
-
-// Mapping from client address -> dataset slug -> find in the folder
-func generateCarFileName(base_directory string, pieceCid string, sourceAddr string) string {
-	datasetSlug := viper.GetString(sourceAddr)
-	if datasetSlug == "" {
-		log.Errorf("unrecognized dataset from addr %s\n", sourceAddr)
-		return ""
-	}
-
-	return base_directory + "/" + datasetSlug + "/" + pieceCid + ".car"
-}
-
-// checks if there are failed deals in a given array of deals
-func hasFailedDeals(ds []Deal) bool {
-	failed := false
-	re, err := regexp.Compile(`.*commp mismatch.*`)
-	if err != nil {
-		log.Error("could not compile regex: " + err.Error())
-		return false
-	}
-
-	for _, d := range ds {
-		isCommpMismatch := re.MatchString(d.Err)
-
-		if isCommpMismatch {
-			failed = true
-			break
+		succesfulImport := boost.ImportCar(context.Background(), filename, id)
+		if succesfulImport {
+			return true
+		} else {
+			log.Debugf("error importing car file for dataset %s", ds.Dataset)
+			return false
 		}
 	}
 
-	return failed
+	log.Errorf("attempted all deals for for dataset %s, none could be imported", ds.Dataset)
+	return false
+}
 
+func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+
+	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
+	if err != nil {
+		log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
+		return false
+	}
+	if pieceCid == "" {
+		log.Debugf("no deal returned for dataset %s", ds.Dataset)
+		return false
+	}
+
+	// Successfully requested a deal - wait for it to show up in Boost
+	readyToImport, err := boost.WaitForDeal(pieceCid)
+	if err != nil {
+		log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
+		return false
+	}
+
+	// * Note: We don't need to check HasMismatchedCommPErrors here, as this should result in a newly requested deal. DDM should not allow multiple re-deals if it had been previously dealt
+
+	// Deal has been made with boost - import it
+	// There may be several deals matching the pieceCid, but we only want to import one - take the first one
+	deal := readyToImport[0]
+	filename := ds.GenerateCarFileName(pieceCid)
+
+	if !FileExists(filename) {
+		log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, pieceCid)
+		return false
+	}
+
+	id, err := uuid.Parse(deal.ID)
+	if err != nil {
+		log.Errorf("could not parse uuid " + deal.ID)
+		return false
+	}
+
+	succesfulImport := boost.ImportCar(context.Background(), filename, id)
+	if succesfulImport {
+		return true
+	} else {
+		return false
+	}
+}
+
+func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
+	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+	carFilePaths := ds.CarFilePaths()
+
+	// TODO: Lookup which deals are already present in Boost, and don't request them again
+	// note: it will still work without doing this, but will require multiple retries as it goes through the directory and requests deals for each CID
+	// we can query Boost for all deals from this address, and ignore CIDs that are already present.
+	// This should drastically improve performance in PullCID mode.
+
+	if len(carFilePaths) == 0 {
+		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
+		return false
+	}
+
+	log.Debugf("%d car files found for dataset %s", len(carFilePaths), ds.Dataset)
+
+	for _, carFilePath := range carFilePaths {
+		// Assume files are named as <cidFromFilename>.car
+		cidFromFilename := FileNameFromPath(carFilePath)
+
+		// Don't attempt any given carfile import more than once
+		if cidsAlreadyAttempted[cidFromFilename] {
+			continue
+		}
+		cidsAlreadyAttempted[cidFromFilename] = true
+
+		// See if we have failed this CID before with mismatched commP
+		otherDeals := boost.GetDealsForContent(cidFromFilename)
+		if HasMismatchedCommPErrors(otherDeals) {
+			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", cidFromFilename)
+			continue
+		}
+
+		pieceCid, err := ddm.RequestDealForCid(cidFromFilename)
+		if err != nil {
+			log.Debugf("error requesting deal for cid %s: %s", cidFromFilename, err.Error())
+			return false
+		}
+		if pieceCid == "" {
+			log.Debugf("no deal returned for dataset %s", ds.Dataset)
+			return false
+		}
+
+		// Successfully requested a deal - wait for it to show up in Boost
+		readyToImport, err := boost.WaitForDeal(pieceCid)
+		if err != nil {
+			log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
+			return false
+		}
+
+		// Deal has been made with boost - import it
+		// There may be several deals matching the pieceCid, but we only want to import one - take the first one
+		deal := readyToImport[0]
+
+		// This should not happen as we just read the file, but check anyway in case the file has been deleted very recently
+		if !FileExists(carFilePath) {
+			log.Debugf("could not find carfile %s for dataset %s for CID %s. it must have been deleted", carFilePath, ds.Dataset, pieceCid)
+			return false
+		}
+
+		id, err := uuid.Parse(deal.ID)
+		if err != nil {
+			log.Errorf("could not parse uuid " + deal.ID)
+			return false
+		}
+
+		succesfulImport := boost.ImportCar(context.Background(), carFilePath, id)
+		if succesfulImport {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	log.Debugf("attempted to import all carfiles for dataset %d, but none could be imported", ds.Dataset)
+	return false
 }
