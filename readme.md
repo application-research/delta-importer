@@ -2,9 +2,11 @@
 https://delta.store
 
 ## What is it?
-- Delta Importer is a tool designed to be run on the Storage Provider infrastructure. 
-- It facilitates automation of *import* deals - that is, importing `.car` files from the filesystem that match the CID of deal proposals sent to the provider.
-- It integrates with [Delta-DM (Dataset Manager)](https://github.com/application-research/delta-dm) to request deals from the self-service API, facilitating a fully automated dealmaking & deal ingestion pipeline.
+- Delta Importer is a tool designed to be run on the Storage Provider infrastructure.
+- It facilitates automation of import deals - that is, importing .car files from the filesystem that match the CID of deal proposals sent to the provider.
+- It integrates with Delta-DM (Dataset Manager) to request deals from the self-service API, facilitating a fully automated dealmaking & deal ingestion pipeline.
+- It has multiple modes of operation, covering a variety of different data ingestion strategies
+- It’s designed from the ground up to be high performance, written in Go. Leveraging optimized Boost queries and tuneable import frequency/concurrent maximum to optimize for sealing throughput
 
 ## Project Goals
 > We intend to make the deal ingestion process fully automated, intelligent and streamlined, such that there is no functional difference between End-to-end (Online) and Import (Offline) deals.
