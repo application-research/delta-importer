@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 
@@ -21,4 +22,14 @@ func FileNameFromPath(path string) string {
 	fileName := filepath.Base(path)
 	fileExt := filepath.Ext(fileName)
 	return fileName[0 : len(fileName)-len(fileExt)]
+}
+
+const FILECOIN_GENESIS_UNIX_EPOCH = 1598306400
+
+func UnixToHeight(unixEpoch int64) int64 {
+	return int64(math.Floor(float64(unixEpoch-FILECOIN_GENESIS_UNIX_EPOCH) / 30))
+}
+
+func HeightToUnix(height int64) int64 {
+	return (height * 30) + FILECOIN_GENESIS_UNIX_EPOCH
 }

@@ -188,6 +188,11 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		}
 		cidsAlreadyAttempted[deal.PieceCid] = true
 
+		if deal.StartEpoch.IntoUnix() < time.Now().Add(MIN_SEALING_TIME).Unix() {
+			log.Debugf("skipping deal %s as it would be past the start epoch when sealing completes", deal.ID)
+			continue
+		}
+
 		// See if we have failed this CID before with mismatched commP
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
 		if HasMismatchedCommPErrors(otherDeals) {

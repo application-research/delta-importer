@@ -3,9 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/urfave/cli/v2"
 )
+
+const MIN_SEALING_TIME = time.Duration(4 * time.Hour)
 
 type Config struct {
 	BoostAddress     string

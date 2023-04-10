@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"regexp"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -30,15 +31,31 @@ type DealsClass struct {
 }
 
 type Deal struct {
-	ID              string `json:"ID"`
-	CreatedAt       string `json:"CreatedAt"`
-	Message         string `json:"Message"`
-	PieceCid        string `json:"PieceCid"`
-	IsOffline       bool   `json:"IsOffline"`
-	ClientAddress   string `json:"ClientAddress"`
-	Checkpoint      string `json:"Checkpoint"`
-	InboundFilePath string `json:"InboundFilePath"`
-	Err             string `json:"Err"`
+	ID              string     `json:"ID"`
+	CreatedAt       string     `json:"CreatedAt"`
+	Message         string     `json:"Message"`
+	PieceCid        string     `json:"PieceCid"`
+	IsOffline       bool       `json:"IsOffline"`
+	ClientAddress   string     `json:"ClientAddress"`
+	Checkpoint      string     `json:"Checkpoint"`
+	StartEpoch      BoostEpoch `json:"StartEpoch"`
+	InboundFilePath string     `json:"InboundFilePath"`
+	Err             string     `json:"Err"`
+}
+
+type BoostEpoch struct {
+	TypeName string `json:"__typename"`
+	Value    string `json:"n"`
+}
+
+func (epoch *BoostEpoch) IntoUnix() int64 {
+	i, err := strconv.ParseInt(epoch.Value, 10, 64)
+	if err != nil {
+		log.Error("could not parse epoch: " + err.Error())
+		return 0
+	}
+
+	return HeightToUnix(i)
 }
 
 // checks if there are failed deals in a given array of deals
