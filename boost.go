@@ -79,6 +79,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDea
 				IsOffline
 				ClientAddress
 				Checkpoint
+				StartEpoch
 				InboundFilePath
 				Err
 			}
