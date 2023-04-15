@@ -35,6 +35,7 @@ func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 		if _, exists := datasetMap[dataset.Address]; exists {
 			log.Fatalf("duplicate address '%s' found in datasets file", err)
 		}
+		dataset.alreadyImportedCids = make(map[string]bool)
 		datasetMap[dataset.Address] = dataset
 	}
 
