@@ -280,10 +280,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 	carFilePaths := ds.CarFilePaths()
 
-	// TODO: Lookup which deals are already present in Boost, and don't request them again
-	// note: it will still work without doing this, but will require multiple retries as it goes through the directory and requests deals for each CID
-	// we can query Boost for all deals from this address, and ignore CIDs that are already present.
-	// This should drastically improve performance in PullCID mode.
+	ds.PopulateCidsCompleted(boost)
 
 	if len(carFilePaths) == 0 {
 		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
@@ -295,6 +292,11 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 	for _, carFilePath := range carFilePaths {
 		// Assume files are named as <cidFromFilename>.car
 		cidFromFilename := FileNameFromPath(carFilePath)
+
+		if ds.IsCidCompleted(cidFromFilename) {
+			log.Debugf("skipping import of %s as it's already been imported previously", cidFromFilename)
+			continue
+		}
 
 		// Don't attempt any given carfile import more than once
 		if cidsAlreadyAttempted[cidFromFilename] {

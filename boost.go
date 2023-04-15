@@ -104,6 +104,34 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDea
 	return toImport
 }
 
+func (bc *BoostConnection) GetDealsCompleted(clientAddress string) BoostDeals {
+	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
+	{
+		deals(filter: {Checkpoint: IndexedAndAnnounced}, query: "%s", limit: 1000000) {
+			deals {
+				ID
+				Message
+				PieceCid
+			}
+		}
+	}
+	`, clientAddress))
+
+	var graphqlResponseCompleted Data
+	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponseCompleted); err != nil {
+		panic(err)
+	}
+
+	var completed []Deal
+	for _, deal := range graphqlResponseCompleted.Deals.Deals {
+		if deal.Message == "Sealer: Proving" {
+			completed = append(completed, deal)
+		}
+	}
+
+	return completed
+}
+
 func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 	graphqlRequestSealing := graphql.NewRequest(`
 	{
