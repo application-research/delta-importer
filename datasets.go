@@ -67,7 +67,7 @@ func (d *Dataset) GenerateCarFileName(pieceCid string) string {
 
 // Get deals that are already imported/completed and save them
 // Will only execute once - returns immediately if the list is already populated
-func (d *Dataset) PopulateCidsCompleted(boost *BoostConnection) {
+func (d *Dataset) PopulateAlreadyImportedCids(boost *BoostConnection) {
 	// Only populate once
 	if len(d.alreadyImportedCids) != 0 {
 		return
@@ -81,7 +81,7 @@ func (d *Dataset) PopulateCidsCompleted(boost *BoostConnection) {
 	}
 }
 
-func (d *Dataset) IsCidCompleted(pieceCid string) bool {
+func (d *Dataset) IsCidAlreadyImported(pieceCid string) bool {
 	_, exists := d.alreadyImportedCids[pieceCid]
 	return exists
 }

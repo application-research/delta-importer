@@ -280,7 +280,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 	carFilePaths := ds.CarFilePaths()
 
-	ds.PopulateCidsCompleted(boost)
+	ds.PopulateAlreadyImportedCids(boost)
 
 	if len(carFilePaths) == 0 {
 		log.Debugf("skipping dataset %s : no car files found", ds.Dataset)
@@ -293,7 +293,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		// Assume files are named as <cidFromFilename>.car
 		cidFromFilename := FileNameFromPath(carFilePath)
 
-		if ds.IsCidCompleted(cidFromFilename) {
+		if ds.IsCidAlreadyImported(cidFromFilename) {
 			log.Debugf("skipping import of %s as it's already been imported previously", cidFromFilename)
 			continue
 		}
