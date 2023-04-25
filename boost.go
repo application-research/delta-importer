@@ -50,7 +50,8 @@ func (bc *BoostConnection) Close() {
 func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUuid uuid.UUID) bool {
 	log.Debugf("importing uuid %v from %v", dealUuid, carFile)
 	// Deal proposal by deal uuid (v1.2.0 deal)
-	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile)
+	// DeleteAfterImport = false
+	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, false)
 	if err != nil {
 		log.Errorf("failed to execute offline deal: %w", err)
 		return false
