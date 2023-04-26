@@ -14,6 +14,14 @@ import (
 var Commit string
 var Version string
 
+var Reset = "\033[0m"
+var Purple = "\033[35m"
+var Cyan = "\033[36m"
+var Gray = "\033[37m"
+var White = "\033[97m"
+var Red = "\033[31m"
+var Green = "\033[32m"
+
 func main() {
 
 	app := &cli.App{
@@ -92,7 +100,10 @@ func main() {
 
 		Action: func(cctx *cli.Context) error {
 			logo := `Δ 𝔻𝕖𝕝𝕥𝕒  𝕀𝕞𝕡𝕠𝕣𝕥𝕖𝕣`
-			log.Info(logo)
+			fmt.Println(Purple + logo + Reset)
+			fmt.Println("Version: " + Version + " (git." + Commit + ")")
+			fmt.Println("Running in " + Red + cctx.String("mode") + Reset + " mode")
+			fmt.Println("Imports every " + Green + cctx.String("interval") + Reset + " seconds, until max-concurrent of " + Cyan + cctx.String("max_concurrent") + Reset + " is reached")
 
 			cfg, err := CreateConfig(cctx)
 			if err != nil {
@@ -132,7 +143,7 @@ func importer(cfg Config, datasets map[string]Dataset) {
 	inProgress := boost.GetDealsInPipeline()
 
 	if cfg.MaxConcurrent != 0 && len(inProgress) >= int(cfg.MaxConcurrent) {
-		log.Debugf("skipping import job as there are already %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
+		log.Infof("skipping import job as there are already %d deals in progress (max_concurrent is %d)", len(inProgress), cfg.MaxConcurrent)
 		return
 	}
 
