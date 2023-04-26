@@ -141,10 +141,6 @@ func importer(cfg Config, datasets map[string]Dataset) {
 
 	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
 	for _, ds := range datasets {
-		if ds.Ignore {
-			continue
-		}
-
 		log.Debugf("searching for a deal for dataset %s", ds.Dataset)
 
 		switch cfg.Mode {
