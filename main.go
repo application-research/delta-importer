@@ -102,6 +102,7 @@ func main() {
 			logo := `Δ 𝔻𝕖𝕝𝕥𝕒  𝕀𝕞𝕡𝕠𝕣𝕥𝕖𝕣`
 			fmt.Println(Purple + logo + Reset)
 			fmt.Println("Version: " + Version + " (git." + Commit + ")")
+			fmt.Printf("\n\n")
 			fmt.Println("Running in " + Red + cctx.String("mode") + Reset + " mode")
 			fmt.Println("Imports every " + Green + cctx.String("interval") + Reset + " seconds, until max-concurrent of " + Cyan + cctx.String("max_concurrent") + Reset + " is reached")
 
@@ -209,12 +210,12 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
 
 		filename := ds.GenerateCarFileName(deal.PieceCid)
 		if filename == "" {
-			log.Debugf("could not find carfile name for dataset %s for CID %s", ds.Dataset, deal.PieceCid)
+			log.Errorf("could not find carfile name for dataset %s for CID %s", ds.Dataset, deal.PieceCid)
 			continue
 		}
 
 		if !FileExists(filename) {
-			log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, deal.PieceCid)
+			log.Errorf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, deal.PieceCid)
 			continue
 		}
 
@@ -228,32 +229,33 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		if succesfulImport {
 			return true
 		} else {
-			log.Debugf("error importing car file for dataset %s", ds.Dataset)
+			log.Errorf("error importing car file for dataset %s", ds.Dataset)
 			return false
 		}
 	}
 
-	log.Errorf("attempted all deals for for dataset %s, none could be imported", ds.Dataset)
+	log.Infof("attempted all deals for for dataset %s, none could be imported", ds.Dataset)
 	return false
 }
 
 func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) bool {
 	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 
+	log.Infof("requesting deal for dataset %s", ds.Dataset)
 	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
 	if err != nil {
-		log.Debugf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
+		log.Errorf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
 		return false
 	}
 	if pieceCid == "" {
-		log.Debugf("no deal returned for dataset %s", ds.Dataset)
+		log.Errorf("no deal returned for dataset %s", ds.Dataset)
 		return false
 	}
 
 	// Successfully requested a deal - wait for it to show up in Boost
 	readyToImport, err := boost.WaitForDeal(pieceCid)
 	if err != nil {
-		log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
+		log.Errorf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
 		return false
 	}
 
@@ -318,20 +320,21 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 			continue
 		}
 
+		log.Infof("requesting deal for dataset %s, cid %s", ds.Dataset, cidFromFilename)
 		pieceCid, err := ddm.RequestDealForCid(cidFromFilename)
 		if err != nil {
-			log.Debugf("error requesting deal for cid %s: %s", cidFromFilename, err.Error())
+			log.Errorf("error requesting deal for cid %s: %s", cidFromFilename, err.Error())
 			return false
 		}
 		if pieceCid == "" {
-			log.Debugf("no deal returned for dataset %s", ds.Dataset)
+			log.Errorf("no deal returned for dataset %s", ds.Dataset)
 			return false
 		}
 
 		// Successfully requested a deal - wait for it to show up in Boost
 		readyToImport, err := boost.WaitForDeal(pieceCid)
 		if err != nil {
-			log.Debugf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
+			log.Errorf("error waiting for deal for dataset %s: %s", ds.Dataset, err.Error())
 			return false
 		}
 
@@ -341,7 +344,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 
 		// This should not happen as we just read the file, but check anyway in case the file has been deleted very recently
 		if !FileExists(carFilePath) {
-			log.Debugf("could not find carfile %s for dataset %s for CID %s. it must have been deleted", carFilePath, ds.Dataset, pieceCid)
+			log.Errorf("could not find carfile %s for dataset %s for CID %s. it must have been deleted", carFilePath, ds.Dataset, pieceCid)
 			return false
 		}
 
@@ -359,6 +362,6 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) bool {
 		}
 	}
 
-	log.Debugf("attempted to import all carfiles for dataset %d, but none could be imported", ds.Dataset)
+	log.Infof("attempted to import all carfiles for dataset %d, but none could be imported", ds.Dataset)
 	return false
 }
