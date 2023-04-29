@@ -97,7 +97,8 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDea
 	for _, deal := range graphqlResponse.Deals.Deals {
 		// Only check:
 		// - Deals where the inbound path has not been set (has not been imported yet)
-		if deal.InboundFilePath == "" {
+		// - Deals that are not running CommP verification (this indicates they have already been imported)
+		if deal.InboundFilePath == "" && deal.Message != "Verifying Commp" {
 			toImport = append(toImport, deal)
 		}
 	}
