@@ -83,6 +83,12 @@ func (d *Dataset) PopulateAlreadyImportedCids(boost *BoostConnection) {
 	for _, deal := range completedDeals {
 		d.alreadyImportedCids[deal.PieceCid] = true
 	}
+
+	inProgressDeals := boost.GetDealsInPipeline()
+	log.Debugf("found %d in-progress deals", len(inProgressDeals))
+	for _, deal := range inProgressDeals {
+		d.alreadyImportedCids[deal.PieceCid] = true
+	}
 }
 
 func (d *Dataset) IsCidAlreadyImported(pieceCid string) bool {

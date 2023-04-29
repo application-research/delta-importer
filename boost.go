@@ -140,6 +140,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 			deals {
 				ID
 				Message
+				PieceCid
 			}
 		}
 	}
@@ -164,6 +165,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 			deals {
 				ID
 				Message
+				PieceCid
 			}
 		}
 	}
