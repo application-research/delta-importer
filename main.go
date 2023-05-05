@@ -91,6 +91,11 @@ func main() {
 				DefaultText: "default",
 				EnvVars:     []string{"MODE"},
 			},
+			&cli.StringFlag{
+				Name:    "log",
+				Usage:   "log file to write to",
+				EnvVars: []string{"LOG"},
+			},
 			&cli.BoolFlag{
 				Name:    "debug",
 				Usage:   "set to enable debug logging output",
@@ -113,6 +118,19 @@ func main() {
 
 			if cfg.Debug {
 				log.SetLevel(log.DebugLevel)
+			}
+
+			logFileLocation := cfg.Log
+			if logFileLocation != "" {
+				f, err := os.OpenFile(logFileLocation, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
+				if err != nil {
+					log.Errorf("error accessing the specified log file: %s", err)
+				} else {
+					log.SetOutput(f)
+					log.Debugf("set log output to %s", logFileLocation)
+				}
+			} else {
+				log.Infof("log file not specified. outputting logs only to terminal")
 			}
 
 			ds := ReadInDatasetsFromFile(cfg.DatasetsFilename)

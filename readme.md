@@ -6,7 +6,8 @@ https://delta.store
 - It facilitates automation of import deals - that is, importing .car files from the filesystem that match the CID of deal proposals sent to the provider.
 - It integrates with Delta-DM (Dataset Manager) to request deals from the self-service API, facilitating a fully automated dealmaking & deal ingestion pipeline.
 - It has multiple modes of operation, covering a variety of different data ingestion strategies
-- It’s designed from the ground up to be high performance, written in Go. Leveraging optimized Boost queries and tuneable import frequency/concurrent maximum to optimize for sealing throughput
+- It’s designed from the ground up to be high performance, written in Go. It has tuneable import frequency/concurrent maximum to optimize for sealing throughput
+- Only one instance of Delta Importer is required per instance of Boost 
 
 ## Project Goals
 > We intend to make the deal ingestion process fully automated, intelligent and streamlined, such that there is no functional difference between End-to-end (Online) and Import (Offline) deals.
@@ -56,6 +57,7 @@ GLOBAL OPTIONS:
    --ddm-api value           url of ddm api (required only for pull modes) [$DDM_API]
    --ddm-token value         dc002354-9acb-4f1d-bdec-b21bf4c2f36d [$DDM_TOKEN]
    --mode value              mode of operation (default | pull-dataset | pull-cid) (default: default) [$MODE]
+   --log value               log file to write to [$LOG]
    --debug                   set to enable debug logging output (default: false) [$DEBUG]
    --help, -h                show help
 ```
@@ -138,6 +140,6 @@ delta-importer \
 --interval 220 \
 --mode pull-dataset \
 --ddm-api http://ddm-api.delta.store/api/v1/self-service \
---ddm-token 864abfe6-9dbc-45fe-9232-1eb903e3b853 \
+--ddm-token 4b28d311-8be6-48d7-801f-dcb6a87ad49d \
 --debug 2>&1 | tee ~/import_log_delta.txt
 ```

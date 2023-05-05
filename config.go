@@ -22,6 +22,7 @@ type Config struct {
 	Mode             Mode
 	DDMURL           string
 	DDMToken         string
+	Log              string
 }
 
 type Mode string
@@ -47,6 +48,7 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 		Mode:             Mode(cctx.String("mode")),
 		DDMURL:           cctx.String("ddm-api"),
 		DDMToken:         cctx.String("ddm-token"),
+		Log:              cctx.String("log"),
 	}
 
 	// Validation
