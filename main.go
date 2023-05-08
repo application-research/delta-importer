@@ -135,7 +135,7 @@ func main() {
 				log.Infof("log file not specified. outputting logs only to terminal")
 			}
 
-			ds := ReadInDatasetsFromFile(filepath.Join(cfg.DataDir + "/topology.json"))
+			ds := ReadInDatasetsFromFile(filepath.Join(cfg.DataDir + "/datasets.json"))
 			log.Debugf("datasets: %+v", ds)
 
 			db, err := OpenDiDB(cfg.DataDir)
