@@ -17,6 +17,16 @@ func FileExists(path string) bool {
 	return true
 }
 
+func FileSize(path string) int64 {
+	s, err := os.Stat(path)
+	if err != nil {
+		log.Errorf("error finding car file for size calculation %s: %s", path, err)
+		return 0
+	}
+
+	return s.Size()
+}
+
 // Returns filename, without extension, given a path
 func FileNameFromPath(path string) string {
 	fileName := filepath.Base(path)

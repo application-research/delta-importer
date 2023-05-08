@@ -22,6 +22,7 @@ type Config struct {
 	Mode             Mode
 	DDMURL           string
 	DDMToken         string
+	DbDir            string
 	Log              string
 }
 
@@ -49,6 +50,7 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 		DDMURL:           cctx.String("ddm-api"),
 		DDMToken:         cctx.String("ddm-token"),
 		Log:              cctx.String("log"),
+		DbDir:            cctx.String("dbdir"),
 	}
 
 	// Validation

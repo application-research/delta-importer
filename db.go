@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type diDB struct {
@@ -18,6 +20,7 @@ const dbSchema = `
 		comm_p VARCHAR(255) NOT NULL,
 		state VARCHAR(255) NOT NULL,
 		mode VARCHAR(255) NOT NULL,
+		message TEXT,
 		created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 `
 
@@ -27,6 +30,7 @@ type DbImportedDeal struct {
 	CommP       string `json:"comm_p"`
 	State       string `json:"state"`
 	Mode        Mode   `json:"mode"`
+	Message     string `json:"message"`
 	CreatedDate string `json:"created_date"`
 }
 
@@ -36,7 +40,8 @@ const (
 	FAILURE = "failed"
 )
 
-func openDiDB(root string) (*diDB, error) {
+func OpenDiDB(root string) (*diDB, error) {
+	log.Debugf("using database file at %s", filepath.Join(root, "./delta-importer.db"))
 	db, err := sql.Open("sqlite3", filepath.Join(root, "./delta-importer.db"))
 	_, err = db.Exec(fmt.Sprintf(dbSchema))
 	if err != nil {
@@ -48,7 +53,13 @@ func openDiDB(root string) (*diDB, error) {
 	}, nil
 }
 
-func (d *diDB) InsertDeal(dealUuid string, commP string, state string, mode Mode) error {
+func (d *diDB) InsertDeal(dealUuid string, commP string, success bool, mode Mode) error {
+	var state string
+	if success {
+		state = PENDING
+	} else {
+		state = FAILURE
+	}
 	_, err := d.db.Exec("INSERT INTO imported_deals (deal_uuid, comm_p, state, mode) VALUES (?, ?, ?, ?)", dealUuid, commP, state, mode)
 
 	if err != nil {

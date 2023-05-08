@@ -47,23 +47,50 @@ func (bc *BoostConnection) Close() {
 	bc.close()
 }
 
-func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, dealUuid uuid.UUID) bool {
+type ImportResult struct {
+	Successful bool
+	DealUuid   string
+	CommP      string
+	FileSize   int64
+	Message    string
+}
+
+func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceCid string, dealUuid uuid.UUID) ImportResult {
 	log.Debugf("importing uuid %v from %v", dealUuid, carFile)
+
 	// Deal proposal by deal uuid (v1.2.0 deal)
 	// DeleteAfterImport = false
 	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, false)
 	if err != nil {
 		log.Errorf("failed to execute offline deal: %w", err)
-		return false
+		return ImportResult{
+			Successful: false,
+			DealUuid:   dealUuid.String(),
+			CommP:      pieceCid,
+			FileSize:   FileSize(carFile),
+			Message:    err.Error(),
+		}
 	}
 	if rej != nil && rej.Reason != "" {
 		log.Errorf("offline deal %s rejected: %s", dealUuid, rej.Reason)
-		return false
+		return ImportResult{
+			Successful: false,
+			DealUuid:   dealUuid.String(),
+			CommP:      pieceCid,
+			FileSize:   FileSize(carFile),
+			Message:    err.Error(),
+		}
 	}
 
 	log.Printf("Offline deal import for v1.2.0 deal %s scheduled for execution", dealUuid)
 
-	return true
+	return ImportResult{
+		Successful: true,
+		DealUuid:   dealUuid.String(),
+		CommP:      pieceCid,
+		FileSize:   FileSize(carFile),
+		Message:    "",
+	}
 }
 
 // Get deals that are offiline, in the "accepted" state, and not yet imported
