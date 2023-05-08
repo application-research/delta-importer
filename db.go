@@ -43,6 +43,10 @@ const (
 func OpenDiDB(root string) (*diDB, error) {
 	log.Debugf("using database file at %s", filepath.Join(root, "./delta-importer.db"))
 	db, err := sql.Open("sqlite3", filepath.Join(root, "./delta-importer.db"))
+	if err != nil {
+		return nil, fmt.Errorf("open db: %w", err)
+	}
+
 	_, err = db.Exec(fmt.Sprintf(dbSchema))
 	if err != nil {
 		return nil, fmt.Errorf("exec schema: %w", err)
