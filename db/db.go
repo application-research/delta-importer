@@ -26,9 +26,9 @@ type DbImportedDeal struct {
 }
 
 const (
-	PENDING = "pending"
-	SUCCESS = "success"
-	FAILURE = "failed"
+	PENDING = "PENDING"
+	SUCCESS = "SUCCESS"
+	FAILURE = "FAILED"
 )
 
 //go:embed create_db.sql
