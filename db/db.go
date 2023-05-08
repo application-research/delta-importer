@@ -91,25 +91,24 @@ type Stat struct {
 
 func (d *DIDB) GetDealStats() (DealStats, error) {
 	var stats DealStats
-	err := d.db.QueryRow("SELECT COUNT(*), SUM(size) FROM imported_deals").Scan(&stats.TotalImported.Count, &stats.TotalImported.Bytes)
+	err := d.db.QueryRow(`
+		SELECT
+		  COUNT(*) AS total_imported_count,
+		  SUM(size) AS total_imported_bytes,
+		  COUNT(*) FILTER (WHERE state = $1) AS pending_count,
+		  SUM(size) FILTER (WHERE state = $1) AS pending_bytes,
+		  COUNT(*) FILTER (WHERE state = $2) AS success_count,
+		  SUM(size) FILTER (WHERE state = $2) AS success_bytes,
+		  COUNT(*) FILTER (WHERE state = $3) AS failed_count,
+		  SUM(size) FILTER (WHERE state = $3) AS failed_bytes
+		FROM
+		  imported_deals`, PENDING, SUCCESS, FAILURE).
+		Scan(&stats.TotalImported.Count, &stats.TotalImported.Bytes,
+			&stats.Pending.Count, &stats.Pending.Bytes,
+			&stats.Success.Count, &stats.Success.Bytes,
+			&stats.Failed.Count, &stats.Failed.Bytes)
 	if err != nil {
-		return stats, fmt.Errorf("get total deal stats: %w", err)
+		return stats, fmt.Errorf("get deal stats: %w", err)
 	}
-
-	err = d.db.QueryRow("SELECT COUNT(*), SUM(size) FROM imported_deals WHERE state = 'PENDING'").Scan(&stats.Pending.Count, &stats.Pending.Bytes)
-	if err != nil {
-		return stats, fmt.Errorf("get pending deal stats: %w", err)
-	}
-
-	err = d.db.QueryRow("SELECT COUNT(*), SUM(size) FROM imported_deals WHERE state = 'SUCCESS'").Scan(&stats.Success.Count, &stats.Success.Bytes)
-	if err != nil {
-		return stats, fmt.Errorf("get success deal stats: %w", err)
-	}
-
-	err = d.db.QueryRow("SELECT COUNT(*), SUM(size) FROM imported_deals WHERE state = 'FAILED'").Scan(&stats.Failed.Count, &stats.Failed.Bytes)
-	if err != nil {
-		return stats, fmt.Errorf("get failed deal stats: %w", err)
-	}
-
 	return stats, nil
 }
