@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,13 +57,6 @@ func main() {
 				Value:       "1288",
 				EnvVars:     []string{"BOOST_PORT"},
 			},
-			&cli.StringFlag{
-				Name:        "datasets",
-				Usage:       "filename for the datasets configuration file",
-				Value:       "datasets.json",
-				DefaultText: "datasets.json",
-				EnvVars:     []string{"DATASETS"},
-			},
 			&cli.IntFlag{
 				Name:    "max_concurrent",
 				Usage:   "stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited.",
@@ -97,11 +91,11 @@ func main() {
 				EnvVars: []string{"LOG"},
 			},
 			&cli.StringFlag{
-				Name:        "dbdir",
-				Usage:       "directory to store database in",
-				Value:       "/var/lib/delta-importer",
-				DefaultText: "/var/lib/delta-importer",
-				EnvVars:     []string{"DB_DIR"},
+				Name:        "dir",
+				Usage:       "directory to store local files in",
+				Value:       "~/.delta/importer",
+				DefaultText: "~/.delta/importer",
+				EnvVars:     []string{"DELTA_DIR"},
 			},
 			&cli.BoolFlag{
 				Name:    "debug",
@@ -117,6 +111,7 @@ func main() {
 			fmt.Printf("\n\n")
 			fmt.Println("Running in " + Red + cctx.String("mode") + Reset + " mode")
 			fmt.Println("Imports every " + Green + cctx.String("interval") + Reset + " seconds, until max-concurrent of " + Cyan + cctx.String("max_concurrent") + Reset + " is reached")
+			fmt.Println("Using data dir in " + Gray + cctx.String("delta-dir") + Reset)
 
 			cfg, err := CreateConfig(cctx)
 			if err != nil {
@@ -140,10 +135,10 @@ func main() {
 				log.Infof("log file not specified. outputting logs only to terminal")
 			}
 
-			ds := ReadInDatasetsFromFile(cfg.DatasetsFilename)
+			ds := ReadInDatasetsFromFile(filepath.Join(cfg.DataDir + "topology.json"))
 			log.Debugf("datasets: %+v", ds)
 
-			db, err := OpenDiDB(cfg.DbDir)
+			db, err := OpenDiDB(cfg.DataDir)
 			if err != nil {
 				return fmt.Errorf("error opening db: %w", err)
 			}

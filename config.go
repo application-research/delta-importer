@@ -3,27 +3,28 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli/v2"
 )
 
 const MIN_SEALING_TIME = time.Duration(4 * time.Hour)
 
 type Config struct {
-	BoostAddress     string
-	BoostAPIKey      string
-	BoostPort        string
-	BoostGqlPort     string
-	DatasetsFilename string
-	Debug            bool
-	MaxConcurrent    uint
-	Interval         uint
-	Mode             Mode
-	DDMURL           string
-	DDMToken         string
-	DbDir            string
-	Log              string
+	BoostAddress  string
+	BoostAPIKey   string
+	BoostPort     string
+	BoostGqlPort  string
+	Debug         bool
+	MaxConcurrent uint
+	Interval      uint
+	Mode          Mode
+	DDMURL        string
+	DDMToken      string
+	DataDir       string
+	Log           string
 }
 
 type Mode string
@@ -38,19 +39,18 @@ const (
 func CreateConfig(cctx *cli.Context) (Config, error) {
 
 	config := Config{
-		BoostAddress:     cctx.String("boost-url"),
-		BoostAPIKey:      cctx.String("boost-auth-token"),
-		Debug:            cctx.Bool("debug"),
-		DatasetsFilename: cctx.String("datasets"),
-		BoostGqlPort:     cctx.String("boost-gql-port"),
-		BoostPort:        cctx.String("boost-port"),
-		MaxConcurrent:    cctx.Uint("max_concurrent"),
-		Interval:         cctx.Uint("interval"),
-		Mode:             Mode(cctx.String("mode")),
-		DDMURL:           cctx.String("ddm-api"),
-		DDMToken:         cctx.String("ddm-token"),
-		Log:              cctx.String("log"),
-		DbDir:            cctx.String("dbdir"),
+		BoostAddress:  cctx.String("boost-url"),
+		BoostAPIKey:   cctx.String("boost-auth-token"),
+		Debug:         cctx.Bool("debug"),
+		BoostGqlPort:  cctx.String("boost-gql-port"),
+		BoostPort:     cctx.String("boost-port"),
+		MaxConcurrent: cctx.Uint("max_concurrent"),
+		Interval:      cctx.Uint("interval"),
+		Mode:          Mode(cctx.String("mode")),
+		DDMURL:        cctx.String("ddm-api"),
+		DDMToken:      cctx.String("ddm-token"),
+		Log:           cctx.String("log"),
+		DataDir:       cctx.String("dir"),
 	}
 
 	// Validation
@@ -77,6 +77,16 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 			return config, errors.New("ddm-api must be supplied when mode is pull-cid or pull-dataset")
 		}
 	}
+
+	dataDir, err := homedir.Expand(config.DataDir)
+	if err != nil {
+		return config, err
+	}
+	if err := os.Mkdir(dataDir, 0755); err != nil && !os.IsExist(err) {
+		return config, fmt.Errorf("make root dir: %w", err)
+	}
+
+	config.DataDir = dataDir
 
 	if config.Debug {
 		fmt.Printf("config: %+v", config)
