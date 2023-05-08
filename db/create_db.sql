@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS imported_deals (
   mode VARCHAR(255) NOT NULL,
   size BIGINT,
   message TEXT,
+  published BOOLEAN DEFAULT FALSE,
   created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
