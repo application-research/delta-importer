@@ -1,7 +1,8 @@
-package main
+package db
 
 import (
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"path/filepath"
 
@@ -9,30 +10,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type diDB struct {
+type DIDB struct {
 	db *sql.DB
 }
-
-const dbSchema = `
-	/* imported_deals */
-	CREATE TABLE IF NOT EXISTS imported_deals (
-		id integer PRIMARY KEY AUTOINCREMENT,
-		deal_uuid VARCHAR(255),
-		comm_p VARCHAR(255) NOT NULL,
-		state VARCHAR(255) NOT NULL,
-		mode VARCHAR(255) NOT NULL,
-		size BIGINT,
-		message TEXT,
-		created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-`
 
 type DbImportedDeal struct {
 	Id          int    `json:"id"`
 	DealUuid    string `json:"deal_uuid"`
 	CommP       string `json:"comm_p"`
 	State       string `json:"state"`
-	Mode        Mode   `json:"mode"`
+	Mode        string `json:"mode"`
 	Size        int64  `json:"size"`
 	Message     string `json:"message"`
 	CreatedDate string `json:"created_date"`
@@ -44,24 +31,38 @@ const (
 	FAILURE = "failed"
 )
 
-func OpenDiDB(root string) (*diDB, error) {
+func OpenDIDB(root string) (*DIDB, error) {
 	log.Debugf("using database file at %s", filepath.Join(root, "./delta-importer.db"))
 	db, err := sql.Open("sqlite3", filepath.Join(root, "./delta-importer.db"))
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	_, err = db.Exec(fmt.Sprintf(dbSchema))
+	err = setUpDBTables(db)
 	if err != nil {
-		return nil, fmt.Errorf("exec schema: %w", err)
+		return nil, fmt.Errorf("set up db tables: %w", err)
 	}
 
-	return &diDB{
+	return &DIDB{
 		db: db,
 	}, nil
 }
 
-func (d *diDB) InsertDeal(dealUuid string, commP string, success bool, mode Mode, message string, size int64) error {
+// Create the initial DB tables to set up a brand new db
+func setUpDBTables(db *sql.DB) error {
+	//go:embed create_db.sql
+	var dbSchema string
+
+	_, err := db.Exec(fmt.Sprintf(dbSchema))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Store a deal in the DI database
+func (d *DIDB) InsertDeal(dealUuid string, commP string, success bool, mode string, message string, size int64) error {
 	var state string
 	if success {
 		state = PENDING
@@ -88,7 +89,7 @@ type Stat struct {
 	Bytes uint
 }
 
-func (d *diDB) GetDealStats() (DealStats, error) {
+func (d *DIDB) GetDealStats() (DealStats, error) {
 	var stats DealStats
 	err := d.db.QueryRow("SELECT COUNT(*), SUM(size) FROM imported_deals").Scan(&stats.TotalImported.Count, &stats.TotalImported.Bytes)
 	if err != nil {

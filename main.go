@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/application-research/delta-importer/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -136,7 +137,7 @@ func main() {
 			ds := ReadInDatasetsFromFile(filepath.Join(cfg.DataDir + "/datasets.json"))
 			log.Debugf("datasets: %+v", ds)
 
-			db, err := OpenDiDB(cfg.DataDir)
+			db, err := db.OpenDIDB(cfg.DataDir)
 			if err != nil {
 				return fmt.Errorf("error opening db: %w", err)
 			}

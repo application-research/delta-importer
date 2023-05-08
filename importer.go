@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/application-research/delta-importer/db"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
-func importer(cfg Config, db *diDB, datasets map[string]Dataset) {
+func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 	// We construct a new Boost connection at each run of the importer, as this is resilient in case boost is down/restarts
 	// It will simply re-connect upon the next run of the importer
 	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
@@ -43,7 +44,7 @@ func importer(cfg Config, db *diDB, datasets map[string]Dataset) {
 		}
 
 		if importResult != nil {
-			db.InsertDeal(importResult.DealUuid, importResult.CommP, importResult.Successful, cfg.Mode, importResult.Message, importResult.FileSize)
+			db.InsertDeal(importResult.DealUuid, importResult.CommP, importResult.Successful, string(cfg.Mode), importResult.Message, importResult.FileSize)
 		}
 
 		if importResult != nil && importResult.Successful {
