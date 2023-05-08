@@ -82,7 +82,7 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 	if err != nil {
 		return config, err
 	}
-	if err := os.Mkdir(dataDir, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(dataDir, 0755); err != nil && !os.IsExist(err) {
 		return config, fmt.Errorf("make root dir: %w", err)
 	}
 
