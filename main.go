@@ -111,7 +111,7 @@ func main() {
 			fmt.Printf("\n\n")
 			fmt.Println("Running in " + Red + cctx.String("mode") + Reset + " mode")
 			fmt.Println("Imports every " + Green + cctx.String("interval") + Reset + " seconds, until max-concurrent of " + Cyan + cctx.String("max_concurrent") + Reset + " is reached")
-			fmt.Println("Using data dir in " + Gray + cctx.String("delta-dir") + Reset)
+			fmt.Println("Using data dir in " + Gray + cctx.String("dir") + Reset)
 
 			cfg, err := CreateConfig(cctx)
 			if err != nil {
