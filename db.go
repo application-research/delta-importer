@@ -23,6 +23,7 @@ const dbSchema = `
 		mode VARCHAR(255) NOT NULL,
 		message TEXT,
 		created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
 `
 
 type DbImportedDeal struct {
