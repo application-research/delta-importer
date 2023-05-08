@@ -31,6 +31,9 @@ const (
 	FAILURE = "failed"
 )
 
+//go:embed create_db.sql
+var dbSchema string
+
 func OpenDIDB(root string) (*DIDB, error) {
 	log.Debugf("using database file at %s", filepath.Join(root, "./delta-importer.db"))
 	db, err := sql.Open("sqlite3", filepath.Join(root, "./delta-importer.db"))
@@ -50,9 +53,6 @@ func OpenDIDB(root string) (*DIDB, error) {
 
 // Create the initial DB tables to set up a brand new db
 func setUpDBTables(db *sql.DB) error {
-	//go:embed create_db.sql
-	var dbSchema string
-
 	_, err := db.Exec(fmt.Sprintf(dbSchema))
 	if err != nil {
 		return err
