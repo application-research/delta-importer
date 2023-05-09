@@ -23,7 +23,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "boost-url",
-				Usage:       "192.168.1.1",
+				Usage:       "ip address of boost",
 				DefaultText: "http://localhost",
 				Value:       "http://localhost",
 				EnvVars:     []string{"BOOST_URL"},
@@ -36,14 +36,14 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:        "boost-gql-port",
-				Usage:       "8080",
+				Usage:       "graphql port for boost",
 				DefaultText: "8080",
 				Value:       "8080",
 				EnvVars:     []string{"BOOST_GQL_PORT"},
 			},
 			&cli.StringFlag{
 				Name:        "boost-port",
-				Usage:       "1288",
+				Usage:       "rpc port for boost",
 				DefaultText: "1288",
 				Value:       "1288",
 				EnvVars:     []string{"BOOST_PORT"},
@@ -66,7 +66,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:    "ddm-token",
-				Usage:   "dc002354-9acb-4f1d-bdec-b21bf4c2f36d",
+				Usage:   "auth token for pull-modes (self-service in DDM)",
 				EnvVars: []string{"DDM_TOKEN"},
 			},
 			&cli.StringFlag{
