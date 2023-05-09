@@ -1,10 +1,12 @@
-package main
+package daemon
 
 import (
 	"context"
 	"time"
 
 	"github.com/application-research/delta-importer/db"
+	svc "github.com/application-research/delta-importer/services"
+	util "github.com/application-research/delta-importer/util"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -12,12 +14,12 @@ import (
 func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 	// We construct a new Boost connection at each run of the importer, as this is resilient in case boost is down/restarts
 	// It will simply re-connect upon the next run of the importer
-	boost, err := NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
+	boost, err := svc.NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
 	if err != nil {
 		log.Errorf("error creating boost connection: %s", err.Error())
 		return
 	}
-	defer boost.close()
+	defer boost.Close()
 
 	inProgress := boost.GetDealsInPipeline()
 
@@ -28,7 +30,7 @@ func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 
 	log.Debugf("found %d deals in sealing pipeline", len(inProgress))
 
-	var importResult *ImportResult
+	var importResult *svc.ImportResult
 
 	// Attempt to import a deal for each dataset in order - if any dataset fails, go to the next one
 	for _, ds := range datasets {
@@ -55,7 +57,7 @@ func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 
 var cidsAlreadyAttempted = make(map[string]bool)
 
-func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) *ImportResult {
+func importerDefault(cfg Config, ds Dataset, boost *svc.BoostConnection) *svc.ImportResult {
 	toImport := boost.GetDealsAwaitingImport(ds.Address)
 
 	if len(toImport) == 0 {
@@ -86,7 +88,7 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 
 		// See if we have failed this CID before with mismatched commP
 		otherDeals := boost.GetDealsForContent(deal.PieceCid)
-		if HasMismatchedCommPErrors(otherDeals) {
+		if otherDeals.HasMismatchedCommPErrors() {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", deal.PieceCid)
 			continue
 		}
@@ -97,7 +99,7 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 			continue
 		}
 
-		if !FileExists(filename) {
+		if !util.FileExists(filename) {
 			log.Errorf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, deal.PieceCid)
 			continue
 		}
@@ -116,8 +118,8 @@ func importerDefault(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 	return nil
 }
 
-func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) *ImportResult {
-	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+func importerPullDataset(cfg Config, ds Dataset, boost *svc.BoostConnection) *svc.ImportResult {
+	ddm := svc.NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 
 	log.Infof("requesting deal for dataset %s", ds.Dataset)
 	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset)
@@ -144,7 +146,7 @@ func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) *Import
 	deal := readyToImport[0]
 	filename := ds.GenerateCarFileName(pieceCid)
 
-	if !FileExists(filename) {
+	if !util.FileExists(filename) {
 		log.Debugf("could not find carfile %s for dataset %s for CID %s", filename, ds.Dataset, pieceCid)
 		return nil
 	}
@@ -159,8 +161,8 @@ func importerPullDataset(cfg Config, ds Dataset, boost *BoostConnection) *Import
 	return &importResult
 }
 
-func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) *ImportResult {
-	ddm := NewDDMApi(cfg.DDMURL, cfg.DDMToken)
+func importerPullCid(cfg Config, ds Dataset, boost *svc.BoostConnection) *svc.ImportResult {
+	ddm := svc.NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 	carFilePaths := ds.CarFilePaths()
 
 	ds.PopulateAlreadyImportedCids(boost)
@@ -174,7 +176,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 
 	for _, carFilePath := range carFilePaths {
 		// Assume files are named as <cidFromFilename>.car
-		cidFromFilename := FileNameFromPath(carFilePath)
+		cidFromFilename := util.FileNameFromPath(carFilePath)
 
 		if ds.IsCidAlreadyImported(cidFromFilename) {
 			log.Debugf("skipping import of %s as it's already been imported previously", cidFromFilename)
@@ -189,7 +191,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 
 		// See if we have failed this CID before with mismatched commP
 		otherDeals := boost.GetDealsForContent(cidFromFilename)
-		if HasMismatchedCommPErrors(otherDeals) {
+		if otherDeals.HasMismatchedCommPErrors() {
 			log.Debugf("skipping import of %s as there are mismatched CommP errors for it", cidFromFilename)
 			continue
 		}
@@ -217,7 +219,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *BoostConnection) *ImportResu
 		deal := readyToImport[0]
 
 		// This should not happen as we just read the file, but check anyway in case the file has been deleted very recently
-		if !FileExists(carFilePath) {
+		if !util.FileExists(carFilePath) {
 			log.Errorf("could not find carfile %s for dataset %s for CID %s. it must have been deleted", carFilePath, ds.Dataset, pieceCid)
 			return nil
 		}

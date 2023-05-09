@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"encoding/json"
@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	svc "github.com/application-research/delta-importer/services"
+	util "github.com/application-research/delta-importer/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,7 +26,7 @@ func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		if err.Error() == "open "+fileName+": no such file or directory" {
-			fmt.Println(">> delta-importer can't seem to find the " + Purple + "datasets.json" + Reset + " file. it should be located at " + Cyan + fileName + Reset + ". please populate this file and try again. see the README for more information.")
+			fmt.Println(">> delta-importer can't seem to find the " + util.Purple + "datasets.json" + util.Reset + " file. it should be located at " + util.Cyan + fileName + util.Reset + ". please populate this file and try again. see the README for more information.")
 			os.Exit(1)
 		} else {
 			log.Fatalf("error reading datasets file at %s", fileName)
@@ -78,7 +80,7 @@ func (d *Dataset) GenerateCarFileName(pieceCid string) string {
 
 // Get deals that are already imported/completed and save them
 // Will only execute once - returns immediately if the list is already populated
-func (d *Dataset) PopulateAlreadyImportedCids(boost *BoostConnection) {
+func (d *Dataset) PopulateAlreadyImportedCids(boost *svc.BoostConnection) {
 	// Only populate once
 	if len(d.alreadyImportedCids) != 0 {
 		return

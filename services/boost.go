@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/application-research/delta-importer/util"
 	bapi "github.com/filecoin-project/boost/api"
 	jsonrpc "github.com/filecoin-project/go-jsonrpc"
 	"github.com/google/uuid"
@@ -67,7 +68,7 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 			Successful: false,
 			DealUuid:   dealUuid.String(),
 			CommP:      pieceCid,
-			FileSize:   FileSize(carFile),
+			FileSize:   util.FileSize(carFile),
 			Message:    err.Error(),
 		}
 	}
@@ -77,7 +78,7 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 			Successful: false,
 			DealUuid:   dealUuid.String(),
 			CommP:      pieceCid,
-			FileSize:   FileSize(carFile),
+			FileSize:   util.FileSize(carFile),
 			Message:    err.Error(),
 		}
 	}
@@ -88,7 +89,7 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 		Successful: true,
 		DealUuid:   dealUuid.String(),
 		CommP:      pieceCid,
-		FileSize:   FileSize(carFile),
+		FileSize:   util.FileSize(carFile),
 		Message:    "",
 	}
 }
@@ -214,7 +215,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 }
 
 // Queries boost for deals that match a given CID - useful to check if there are other failed ones
-func (bc *BoostConnection) GetDealsForContent(cid string) []Deal {
+func (bc *BoostConnection) GetDealsForContent(cid string) Deals {
 	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
 		deals(query: "%s", limit: 5) {
@@ -253,9 +254,9 @@ whileLoop:
 		}
 
 		time.Sleep(time.Second * 10 * time.Duration(retryCount))
-		// Check to see if the deal has been made
-		deal := bc.GetDealsForContent(pieceCid)
-		readyToImport = DealsReadyForImport(deal)
+		// Check to see if the deals has been made
+		deals := bc.GetDealsForContent(pieceCid)
+		readyToImport = deals.ReadyForImport()
 
 		if len(readyToImport) > 0 {
 			break whileLoop

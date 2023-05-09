@@ -5,20 +5,21 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/application-research/delta-importer/util"
 	log "github.com/sirupsen/logrus"
 )
 
-func UnmarshalDeals(data []byte) (Deals, error) {
-	var r Deals
+func UnmarshalDeals(data []byte) (DealsJson, error) {
+	var r DealsJson
 	err := json.Unmarshal(data, &r)
 	return r, err
 }
 
-func (r *Deals) Marshal() ([]byte, error) {
+func (r *DealsJson) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-type Deals struct {
+type DealsJson struct {
 	Data Data `json:"data"`
 }
 
@@ -27,8 +28,10 @@ type Data struct {
 }
 
 type DealsClass struct {
-	Deals []Deal `json:"deals"`
+	Deals Deals `json:"deals"`
 }
+
+type Deals []Deal
 
 type Deal struct {
 	ID              string     `json:"ID"`
@@ -55,11 +58,11 @@ func (epoch *BoostEpoch) IntoUnix() int64 {
 		return 0
 	}
 
-	return HeightToUnix(i)
+	return util.HeightToUnix(i)
 }
 
 // checks if there are failed deals in a given array of deals
-func HasMismatchedCommPErrors(ds []Deal) bool {
+func (ds Deals) HasMismatchedCommPErrors() bool {
 	failed := false
 	re, err := regexp.Compile(`.*commp mismatch.*`)
 	if err != nil {
@@ -79,7 +82,7 @@ func HasMismatchedCommPErrors(ds []Deal) bool {
 	return failed
 }
 
-func DealsReadyForImport(ds []Deal) []Deal {
+func (ds Deals) ReadyForImport() []Deal {
 	var toImport []Deal
 
 	for _, d := range ds {

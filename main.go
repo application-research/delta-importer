@@ -3,10 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"time"
 
-	"github.com/application-research/delta-importer/db"
+	dmn "github.com/application-research/delta-importer/daemon"
+	"github.com/application-research/delta-importer/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -97,48 +96,14 @@ func main() {
 
 		Action: func(cctx *cli.Context) error {
 			logo := `Δ 𝔻𝕖𝕝𝕥𝕒  𝕀𝕞𝕡𝕠𝕣𝕥𝕖𝕣`
-			fmt.Println(Purple + logo + Reset)
+			fmt.Println(util.Purple + logo + util.Reset)
 			fmt.Println("Version: " + Version + " (git." + Commit + ")")
 			fmt.Printf("\n\n")
-			fmt.Println("Running in " + Red + cctx.String("mode") + Reset + " mode")
-			fmt.Println("Imports every " + Green + cctx.String("interval") + Reset + " seconds, until max-concurrent of " + Cyan + cctx.String("max_concurrent") + Reset + " is reached")
-			fmt.Println("Using data dir in " + Gray + cctx.String("dir") + Reset)
+			fmt.Println("Running in " + util.Red + cctx.String("mode") + util.Reset + " mode")
+			fmt.Println("Imports every " + util.Green + cctx.String("interval") + util.Reset + " seconds, until max-concurrent of " + util.Cyan + cctx.String("max_concurrent") + util.Reset + " is reached")
+			fmt.Println("Using data dir in " + util.Gray + cctx.String("dir") + util.Reset)
 
-			cfg, err := CreateConfig(cctx)
-			if err != nil {
-				return err
-			}
-
-			if cfg.Debug {
-				log.SetLevel(log.DebugLevel)
-			}
-
-			logFileLocation := cfg.Log
-			if logFileLocation != "" {
-				f, err := os.OpenFile(logFileLocation, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
-				if err != nil {
-					log.Errorf("error accessing the specified log file: %s", err)
-				} else {
-					log.SetOutput(f)
-					log.Debugf("set log output to %s", logFileLocation)
-				}
-			} else {
-				log.Infof("log file not specified. outputting logs only to terminal")
-			}
-
-			ds := ReadInDatasetsFromFile(filepath.Join(cfg.DataDir + "/datasets.json"))
-			log.Debugf("datasets: %+v", ds)
-
-			db, err := db.OpenDIDB(cfg.DataDir)
-			if err != nil {
-				return fmt.Errorf("error opening db: %w", err)
-			}
-
-			for {
-				log.Debugf("running import...")
-				importer(cfg, db, ds)
-				time.Sleep(time.Second * time.Duration(cfg.Interval))
-			}
+			return dmn.RunDaemon(cctx)
 		},
 	}
 
