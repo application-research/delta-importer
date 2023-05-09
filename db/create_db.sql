@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS imported_deals (
+  id integer PRIMARY KEY AUTOINCREMENT,
+  deal_uuid VARCHAR(255),
+  comm_p VARCHAR(255) NOT NULL,
+  state VARCHAR(255) NOT NULL,
+  mode VARCHAR(255) NOT NULL,
+  size BIGINT,
+  message TEXT,
+  published BOOLEAN DEFAULT FALSE,
+  created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

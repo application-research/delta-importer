@@ -51,20 +51,22 @@ GLOBAL OPTIONS:
    --boost-auth-token value  eyJ....XXX [$BOOST_AUTH_TOKEN]
    --boost-gql-port value    8080 (default: 8080) [$BOOST_GQL_PORT]
    --boost-port value        1288 (default: 1288) [$BOOST_PORT]
-   --datasets value          filename for the datasets configuration file (default: datasets.json) [$DATASETS]
    --max_concurrent value    stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited. (default: 0) [$MAX_CONCURRENT]
    --interval value          interval, in seconds, to re-run the importer (default: 0) [$INTERVAL]
    --ddm-api value           url of ddm api (required only for pull modes) [$DDM_API]
    --ddm-token value         dc002354-9acb-4f1d-bdec-b21bf4c2f36d [$DDM_TOKEN]
    --mode value              mode of operation (default | pull-dataset | pull-cid) (default: default) [$MODE]
    --log value               log file to write to [$LOG]
+   --dir value               directory to store local files in (default: ~/.delta/importer) [$DELTA_DIR]
    --debug                   set to enable debug logging output (default: false) [$DEBUG]
    --help, -h                show help
+   --version, -v             print the version
 ```
 
 
 ## Configuration
 
+By default, `delta-importer` stores all its local data in the `~/delta/importer` directory for the currently running user. If it does not exist, the tool will attempt to create the directory structure on first launch. This can be changed using the `--dir` flag or `DELTA_DIR` environment variable.
 ### Command-Line Operations
 Delta Importer requires a few configuration options to be set. These can be set via environment variables, or via command line flags.
 
@@ -87,7 +89,7 @@ delta-importer \
 > Hint: The `--interval` and `--max_concurrent` flags are used to tweak the importer's speed. These parameters should be carefully tuned to match the provider's sealing throughput and available bandwidth. The example provided above is a good starting point for a provider with approximately 10TiB/day of sealing throughput.
 
 ### datasets.json
-The `datasets.json` file is required to be present in the same directory that `delta-importer` is being run in. This file maintains a mapping between client `wallets` (i.e, who is making deals) with a `dataset slug` (identifier), and a directory to search for CAR files to import.
+The `datasets.json` file is required to be present in the `delta-importer` data directory (defaults to `~/delta/importer/`). This file maintains a mapping between client `wallets` (i.e, who is making deals) with a `dataset slug` (identifier), and a directory to search for CAR files to import.
 
 Example `datasets.json`
 ```json
@@ -107,7 +109,12 @@ Example `datasets.json`
 ]
 ```
 
-This `datasets.json` file will be processed in order, preferring deals with the first dataset in the list. If a deal is found for `radiant-ml`, the importer will scan the `/mnt/delta-datasets/radiant-poc` directory for a CAR file matching the PieceCID of the deal. If a match is found, the importer will import the data. If no match is found, the importer will move on to the next dataset in the list, and attempt to import data for that dataset.
+This `datasets.json` file will be processed in order, preferring deals with the first dataset in the list. 
+
+Using the above example,
+- If a deal is found for `radiant-ml`, the importer will scan the `/mnt/delta-datasets/radiant-poc` directory for a CAR file matching the PieceCID of the deal. 
+- If a match is found, the importer will import the data. 
+- If no match is found, the importer will move on to the next dataset in the list, and attempt to import data for that dataset.
 
 Set the `ignore` flag to `true` to skip a dataset. This is useful if you want to speed-up the import loop by disabling a dataset from being imported (ex. if datacap has been exhausted, or data transfer is not complete yet)
 

@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +23,12 @@ type Dataset struct {
 func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Fatalf("error reading datasets file: %s", err)
+		if err.Error() == "open "+fileName+": no such file or directory" {
+			fmt.Println(">> delta-importer can't seem to find the " + Purple + "datasets.json" + Reset + " file. it should be located at " + Cyan + fileName + Reset + ". please populate this file and try again. see the README for more information.")
+			os.Exit(1)
+		} else {
+			log.Fatalf("error reading datasets file at %s", fileName)
+		}
 	}
 
 	var datasets []Dataset
