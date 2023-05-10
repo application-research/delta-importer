@@ -142,13 +142,13 @@ func SetupCommands() []*cli.Command {
 			t.SetOutputMirror(os.Stdout)
 			t.AppendHeader(table.Row{"State", "Count", "Bytes"})
 			t.AppendRows([]table.Row{
-				{"Success", statsJson.Success.Count.Int64, statsJson.Success.Bytes.Int64},
-				{"Failure", statsJson.Failure.Count.Int64, statsJson.Failure.Bytes.Int64},
-				{"Pending", statsJson.Pending.Count.Int64, statsJson.Pending.Bytes.Int64},
+				{"Success", statsJson.Success.Count.Int64, util.BytesToReadable(statsJson.Success.Bytes.Int64)},
+				{"Failure", statsJson.Failure.Count.Int64, util.BytesToReadable(statsJson.Failure.Bytes.Int64)},
+				{"Pending", statsJson.Pending.Count.Int64, util.BytesToReadable(statsJson.Pending.Bytes.Int64)},
 			})
 			t.AppendSeparator()
 			t.AppendRows([]table.Row{
-				{"Total", statsJson.TotalImported.Count.Int64, statsJson.TotalImported.Bytes.Int64},
+				{"Total", statsJson.TotalImported.Count.Int64, util.BytesToReadable(statsJson.TotalImported.Bytes.Int64)},
 			})
 			t.AppendFooter(table.Row{"", "Last Import Time", statsJson.LastImported})
 			t.SetStyle(table.StyleColoredDark)
