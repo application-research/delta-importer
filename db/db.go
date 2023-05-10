@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/guregu/null/zero"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
@@ -88,8 +87,8 @@ type DealStats struct {
 }
 
 type Stat struct {
-	Count zero.Int `json:"count"`
-	Bytes zero.Int `json:"bytes"`
+	Count sql.NullInt64 `json:"count"`
+	Bytes sql.NullInt64 `json:"bytes"`
 }
 
 func (d *DIDB) GetDealStats() (DealStats, error) {

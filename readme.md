@@ -38,50 +38,42 @@ This will install the `delta-importer` binary to `/usr/local/bin`. Test it out b
 
 ```
 NAME:
-   Delta Importer - A tool to automate the ingestion of offline/import deals into boost
+   delta-importer - An application to facilitate importing deals into a Filecoin Storage Provider
 
 USAGE:
-   Delta Importer [global options] command [command options] [arguments...]
+   delta-importer [global options] command [command options] [arguments...]
 
 COMMANDS:
-   help, h  Shows a list of commands or help for one command
+   daemon, d  run the delta-importer daemon to continuously import deals
+   stats      get stats about imported deals
+   help, h    Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --boost-url value         192.168.1.1 (default: http://localhost) [$BOOST_URL]
-   --boost-auth-token value  eyJ....XXX [$BOOST_AUTH_TOKEN]
-   --boost-gql-port value    8080 (default: 8080) [$BOOST_GQL_PORT]
-   --boost-port value        1288 (default: 1288) [$BOOST_PORT]
-   --max_concurrent value    stop importing if # of deals in sealing pipeline are above this threshold. 0 = unlimited. (default: 0) [$MAX_CONCURRENT]
-   --interval value          interval, in seconds, to re-run the importer (default: 0) [$INTERVAL]
-   --ddm-api value           url of ddm api (required only for pull modes) [$DDM_API]
-   --ddm-token value         dc002354-9acb-4f1d-bdec-b21bf4c2f36d [$DDM_TOKEN]
-   --mode value              mode of operation (default | pull-dataset | pull-cid) (default: default) [$MODE]
-   --log value               log file to write to [$LOG]
-   --dir value               directory to store local files in (default: ~/.delta/importer) [$DELTA_DIR]
-   --debug                   set to enable debug logging output (default: false) [$DEBUG]
-   --help, -h                show help
-   --version, -v             print the version
+   --help, -h     show help
+   --version, -v  print the version
 ```
 
 
-## Configuration
+## Running the Importer Daemon
 
-By default, `delta-importer` stores all its local data in the `~/delta/importer` directory for the currently running user. If it does not exist, the tool will attempt to create the directory structure on first launch. This can be changed using the `--dir` flag or `DELTA_DIR` environment variable.
-### Command-Line Operations
-Delta Importer requires a few configuration options to be set. These can be set via environment variables, or via command line flags.
+### Configuration
 
-Below is an example shell script to launch the importer, running in **default** mode, and importing a new deal every **260** seconds, until a maximum of **175** deals are active in the sealing pipeline (AP+PC1+PC2+C2).
+By default, `delta-importer` stores all its local data in the `~/delta/importer` directory for the currently running user. If it does not exist, the tool will attempt to create the directory structure on first launch of the `daemon` command. This can be changed using the `--dir` flag or `DELTA_DIR` environment variable.
+
+### Command-Line Operation
+Delta Importer daemon requires a few configuration options to be set. These can be set via environment variables, or via command line flags.
+
+Below is an example shell script to launch the importer daemon, running in **default** mode, and importing a new deal every **260** seconds, until a maximum of **175** deals are active in the sealing pipeline (AP+PC1+PC2+C2).
 
 ```bash
-delta-importer \
+delta-importer daemon \
   --boost-url 10.10.10.20 \
   --boost-gql-port 8080 \
   --boost-port 1288 \
   --boost-auth-token XXX.YYY.ZZZ \ 
   --max_concurrent 175 \ 
   --interval 260 \ 
-  --mode default \ 
-  --debug 2>&1 | tee ~/import_log.txt 
+  --mode default  
 ```
 
 > Hint: Obtain the `boost-auth-token` by running the `boostd auth create-token --perm admin` command on your Boost node.
@@ -150,3 +142,7 @@ delta-importer \
 --ddm-token 4b28d311-8be6-48d7-801f-dcb6a87ad49d \
 --debug 2>&1 | tee ~/import_log_delta.txt
 ```
+
+## Other commands
+
+Run `delta-importer stats` to get a table showing statistics on imported deal data.
