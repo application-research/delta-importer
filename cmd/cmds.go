@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
 	dmn "github.com/application-research/delta-importer/daemon"
+	"github.com/application-research/delta-importer/db"
 	"github.com/application-research/delta-importer/util"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/urfave/cli/v2"
 )
 
@@ -128,7 +132,27 @@ func SetupCommands() []*cli.Command {
 			}
 			defer closer()
 
-			fmt.Printf("%s", string(res))
+			var statsJson db.DealStats
+			err = json.Unmarshal(res, &statsJson)
+			if err != nil {
+				return fmt.Errorf("failed to parse %s", err)
+			}
+
+			t := table.NewWriter()
+			t.SetOutputMirror(os.Stdout)
+			t.AppendHeader(table.Row{"State", "Count", "Bytes"})
+			t.AppendRows([]table.Row{
+				{"Success", statsJson.Success.Count, statsJson.Success.Bytes},
+				{"Failure", statsJson.Failure.Count, statsJson.Failure.Bytes},
+				{"Pending", statsJson.Pending.Count, statsJson.Pending.Bytes},
+			})
+			t.AppendSeparator()
+			t.AppendRows([]table.Row{
+				{"Total", statsJson.TotalImported.Count, statsJson.TotalImported.Bytes},
+			})
+			t.AppendFooter(table.Row{"", "Last Import Time", statsJson.LastImported})
+			t.SetStyle(table.StyleColoredDark)
+			t.Render()
 
 			return nil
 		},
