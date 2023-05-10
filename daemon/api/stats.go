@@ -6,5 +6,15 @@ import (
 )
 
 func ConfigureStatsRouter(e *echo.Group, db *db.DIDB) {
+	stats := e.Group("stats")
 
+	stats.GET("", func(c echo.Context) error {
+		ds, err := db.GetDealStats()
+
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(200, ds)
+	})
 }
