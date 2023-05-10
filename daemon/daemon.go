@@ -43,7 +43,7 @@ func RunDaemon(cctx *cli.Context) error {
 		return fmt.Errorf("error opening db: %w", err)
 	}
 
-	api.InitializeEchoRouterConfig(db, cfg.Port)
+	go api.InitializeEchoRouterConfig(db, cfg.Port)
 
 	for {
 		log.Debugf("running import...")
