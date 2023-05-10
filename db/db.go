@@ -87,8 +87,8 @@ type DealStats struct {
 }
 
 type Stat struct {
-	Count sql.NullInt64 `json:"count"`
-	Bytes sql.NullInt64 `json:"bytes"`
+	Count *int64 `json:"count"`
+	Bytes *int64 `json:"bytes"`
 }
 
 func (d *DIDB) GetDealStats() (DealStats, error) {
