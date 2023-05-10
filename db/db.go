@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -78,15 +79,16 @@ func (d *DIDB) InsertDeal(dealUuid string, commP string, success bool, mode stri
 }
 
 type DealStats struct {
-	TotalImported Stat
-	Pending       Stat
-	Success       Stat
-	Failed        Stat
+	TotalImported Stat      `json:"total_imported"`
+	Pending       Stat      `json:"pending"`
+	Success       Stat      `json:"success"`
+	Failure       Stat      `json:"failure"`
+	LastImported  time.Time `json:"last_imported_time"`
 }
 
 type Stat struct {
-	Count uint
-	Bytes uint
+	Count sql.NullInt64 `json:"count"`
+	Bytes sql.NullInt64 `json:"bytes"`
 }
 
 func (d *DIDB) GetDealStats() (DealStats, error) {
@@ -106,9 +108,22 @@ func (d *DIDB) GetDealStats() (DealStats, error) {
 		Scan(&stats.TotalImported.Count, &stats.TotalImported.Bytes,
 			&stats.Pending.Count, &stats.Pending.Bytes,
 			&stats.Success.Count, &stats.Success.Bytes,
-			&stats.Failed.Count, &stats.Failed.Bytes)
+			&stats.Failure.Count, &stats.Failure.Bytes)
 	if err != nil {
 		return stats, fmt.Errorf("get deal stats: %w", err)
 	}
+
+	err = d.db.QueryRow(`
+		SELECT 
+			created_date
+		FROM
+			imported_deals
+		ORDER BY created_date DESC
+		LIMIT 1
+	`).Scan(&stats.LastImported)
+	if err != nil {
+		return stats, fmt.Errorf("get last imported deal date: %w", err)
+	}
+
 	return stats, nil
 }

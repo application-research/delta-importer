@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"errors"
@@ -13,6 +13,7 @@ import (
 const MIN_SEALING_TIME = time.Duration(4 * time.Hour)
 
 type Config struct {
+	Port          uint
 	BoostAddress  string
 	BoostAPIKey   string
 	BoostPort     string
@@ -39,6 +40,7 @@ const (
 func CreateConfig(cctx *cli.Context) (Config, error) {
 
 	config := Config{
+		Port:          cctx.Uint("port"),
 		BoostAddress:  cctx.String("boost-url"),
 		BoostAPIKey:   cctx.String("boost-auth-token"),
 		Debug:         cctx.Bool("debug"),
