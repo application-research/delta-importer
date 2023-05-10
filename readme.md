@@ -130,7 +130,7 @@ When using in either `Pull Mode`, the `--ddm-api` and `--ddm-token` flags are re
 
 *example pull mode (Dataset) configuration*
 ```bash
-delta-importer \
+delta-importer daemon\
 --boost-url 10.32.32.20 \
 --boost-gql-port 8080
 --boost-port 1288 \
@@ -139,8 +139,7 @@ delta-importer \
 --interval 220 \
 --mode pull-dataset \
 --ddm-api http://ddm-api.delta.store/api/v1/self-service \
---ddm-token 4b28d311-8be6-48d7-801f-dcb6a87ad49d \
---debug 2>&1 | tee ~/import_log_delta.txt
+--ddm-token 4b28d311-8be6-48d7-801f-dcb6a87ad49d 
 ```
 
 ## Other commands
