@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/application-research/delta-importer/db"
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	log "github.com/sirupsen/logrus"
 )
 
