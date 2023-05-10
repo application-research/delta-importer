@@ -1,4 +1,4 @@
-package cmds
+package cmd
 
 import (
 	"fmt"
@@ -115,21 +115,24 @@ func SetupCommands() []*cli.Command {
 	commands = append(commands, &cli.Command{
 		Name:  "stats",
 		Usage: "get stats about imported deals",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "url",
-				Usage:       "url to connect to delta-importer api on",
-				Aliases:     []string{"u"},
-				Value:       "http://127.0.0.1:1313",
-				DefaultText: "http://127.0.0.1:1313",
-			},
-		},
+		Flags: CLIConnectFlags,
 		Action: func(cctx *cli.Context) error {
+			c, err := NewCmdProcessor(cctx)
+			if err != nil {
+				return err
+			}
+
+			res, closer, err := c.MakeRequest("GET", "/api/v1/stats", nil)
+			if err != nil {
+				return fmt.Errorf("command failed %s", err)
+			}
+			defer closer()
+
+			fmt.Printf("%s", string(res))
 
 			return nil
 		},
 	})
 
 	return commands
-
 }

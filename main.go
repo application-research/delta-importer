@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	cmd "github.com/application-research/delta-importer/cmd"
+	"github.com/application-research/delta-importer/cmd"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
