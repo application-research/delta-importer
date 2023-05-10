@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -50,4 +51,25 @@ func UnixToHeight(unixEpoch int64) int64 {
 
 func HeightToUnix(height int64) int64 {
 	return (height * 30) + FILECOIN_GENESIS_UNIX_EPOCH
+}
+
+// Returns a human readable string for a given number of bytes
+// Auto-converts to KiB, MiB, GiB, TiB, PiB, etc.
+// Rounds to one decimal place
+func BytesToReadable(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	size := float64(bytes) / float64(div)
+	suffix := []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
+	if exp >= len(suffix) {
+		return fmt.Sprintf("%.1f B", size*float64(div))
+	}
+	return fmt.Sprintf("%.1f %s", size, suffix[exp-1])
 }
