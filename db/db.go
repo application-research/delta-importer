@@ -118,7 +118,7 @@ func (d *DIDB) GetDealStats() (DealStats, error) {
 			created_date
 		FROM
 			imported_deals
-		ORDER BY created_date
+		ORDER BY created_date DESC
 		LIMIT 1
 	`).Scan(&stats.LastImported)
 	if err != nil {
