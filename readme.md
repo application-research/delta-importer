@@ -146,3 +146,6 @@ delta-importer \
 ## Other commands
 
 Run `delta-importer stats` to get a table showing statistics on imported deal data.
+
+
+<img src="./docs/assets/stats.png" width=300/>
