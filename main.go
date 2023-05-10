@@ -27,6 +27,13 @@ func main() {
 				Value:       "http://localhost",
 				EnvVars:     []string{"BOOST_URL"},
 			},
+			&cli.UintFlag{
+				Name:        "port",
+				Usage:       "port to run the daemon's API on",
+				DefaultText: "1313",
+				Value:       1313,
+				EnvVars:     []string{"DI_PORT"},
+			},
 			&cli.StringFlag{
 				Name:     "boost-auth-token",
 				Usage:    "eyJ....XXX",
@@ -102,6 +109,7 @@ func main() {
 			fmt.Println("Running in " + util.Red + cctx.String("mode") + util.Reset + " mode")
 			fmt.Println("Imports every " + util.Green + cctx.String("interval") + util.Reset + " seconds, until max-concurrent of " + util.Cyan + cctx.String("max_concurrent") + util.Reset + " is reached")
 			fmt.Println("Using data dir in " + util.Gray + cctx.String("dir") + util.Reset)
+			fmt.Println("Importer API is available at" + util.Red + "127.0.0.1:" + cctx.String("port") + util.Reset)
 
 			return dmn.RunDaemon(cctx)
 		},

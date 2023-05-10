@@ -49,6 +49,7 @@ func InitializeEchoRouterConfig(db *db.DIDB, port uint) {
 
 	apiGroup := e.Group("/api/v1")
 
+	ConfigureHealthRouter(apiGroup)
 	ConfigureStatsRouter(apiGroup, db)
 	// Start server
 	e.Logger.Fatal(e.Start(fmt.Sprintf("0.0.0.0:%d", (port)))) // configuration
@@ -95,10 +96,6 @@ func ErrorHandler(err error, c echo.Context) {
 
 // LoopForever on signal processing
 func LoopForever() {
-	fmt.Printf("Entering infinite loop\n")
-
 	signal.Notify(OsSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
 	<-OsSignal
-
-	fmt.Printf("Exiting infinite loop received OsSignal\n")
 }
