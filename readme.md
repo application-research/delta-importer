@@ -124,6 +124,7 @@ In this mode, Delta Importer will scan Boost for deals awaiting import, and auto
 <div align="center">
 <img src="./docs/assets/default-mode.png" width=800/>
 </div>
+<br/>
 
 
 2. **Pull Mode - Dataset**
@@ -133,6 +134,7 @@ In this mode, the Delta Importer will request deals from the DDM self-service AP
 <div align="center">
 <img src="./docs/assets/pull-dataset-mode.png" width=800/>
 </div>
+<br/>
 
 3. **Pull Mode - CID**
 `--mode pull-cid`
@@ -142,6 +144,7 @@ It will check Boost to ensure duplicate deals are not requested.
 <div align="center">
 <img src="./docs/assets/pull-cid-mode.png" width=800/>
 </div>
+<br/>
 
 When using in either `Pull Mode`, the `--ddm-api` and `--ddm-token` flags are required. These indicate the DDM API endpoint and the API token to use when making deal requests to the DDM API. Contact your DDM administrator for these parameters.
 
