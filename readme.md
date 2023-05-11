@@ -1,6 +1,11 @@
-<img src="./docs/assets/hero.png" width=800/>
+<div align="center">
+<h1> Δ Importer </h1>
 
-## What is it?
+
+<img src="./docs/assets/hero.png" width=700/>
+</div>
+
+## What is this?
 - Delta Importer is a tool designed to be run on the Storage Provider infrastructure.
 - It facilitates automation of import deals - that is, importing .car files from the filesystem that match the CID of deal proposals sent to the provider.
 - It integrates with Delta-DM (Dataset Manager) to request deals from the self-service API, facilitating a fully automated dealmaking & deal ingestion pipeline.
@@ -116,14 +121,27 @@ Delta-Importer can be ran in three modes:
 `--mode default // not required`
 In this mode, Delta Importer will scan Boost for deals awaiting import, and automatically match them to CAR files on the filesystem and import them.
 
+<div align="center">
+<img src="./docs/assets/default-mode.png" width=800/>
+</div>
+
+
 2. **Pull Mode - Dataset**
 `--mode pull-dataset`
 In this mode, the Delta Importer will request deals from the DDM self-service API per-dataset, before attempting to import them. 
+
+<div align="center">
+<img src="./docs/assets/pull-dataset-mode.png" width=800/>
+</div>
 
 3. **Pull Mode - CID**
 `--mode pull-cid`
 In this mode, the Delta Importer will scan the filesystem for CAR files, and make requests to the DDM self-service API for each carfile.
 It will check Boost to ensure duplicate deals are not requested.
+
+<div align="center">
+<img src="./docs/assets/pull-cid-mode.png" width=800/>
+</div>
 
 When using in either `Pull Mode`, the `--ddm-api` and `--ddm-token` flags are required. These indicate the DDM API endpoint and the API token to use when making deal requests to the DDM API. Contact your DDM administrator for these parameters.
 
