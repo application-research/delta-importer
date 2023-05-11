@@ -1,5 +1,4 @@
-# Δ Importer
-https://delta.store
+<img src="./docs/assets/hero.png" width=800/>
 
 ## What is it?
 - Delta Importer is a tool designed to be run on the Storage Provider infrastructure.
