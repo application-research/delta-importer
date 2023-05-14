@@ -68,8 +68,5 @@ func BytesToReadable(bytes int64) string {
 	}
 	size := float64(bytes) / float64(div)
 	suffix := []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
-	if exp >= len(suffix) {
-		return fmt.Sprintf("%.1f B", size*float64(div))
-	}
-	return fmt.Sprintf("%.1f %s", size, suffix[exp-1])
+	return fmt.Sprintf("%.1f %s", size, suffix[exp])
 }
