@@ -21,7 +21,7 @@ type Dataset struct {
 	alreadyImportedCids map[string]bool `json:"omitempty"`
 }
 
-// Read the datasets file and return a map of Dataset structs keyed by their Address
+// Read the datasets file and return a map of Dataset structs keyed by their Dataset name
 func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -45,11 +45,11 @@ func ReadInDatasetsFromFile(fileName string) map[string]Dataset {
 			continue
 		}
 
-		if _, exists := datasetMap[dataset.Address]; exists {
-			log.Fatalf("duplicate address '%s' found in datasets file", dataset.Address)
+		if _, exists := datasetMap[dataset.Dataset]; exists {
+			log.Fatalf("duplicate dataset name '%s' found in datasets file", dataset.Dataset)
 		}
 		dataset.alreadyImportedCids = make(map[string]bool)
-		datasetMap[dataset.Address] = dataset
+		datasetMap[dataset.Dataset] = dataset
 	}
 
 	return datasetMap

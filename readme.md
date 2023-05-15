@@ -114,6 +114,8 @@ Using the above example,
 
 Set the `ignore` flag to `true` to skip a dataset. This is useful if you want to speed-up the import loop by disabling a dataset from being imported (ex. if datacap has been exhausted, or data transfer is not complete yet)
 
+>Note: The `dataset` field must be unique across all entries in the `datasets.json` file
+
 ### Operational Modes
 Delta-Importer can be ran in three modes:
 
