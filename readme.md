@@ -92,13 +92,13 @@ Example `datasets.json`
 [
   {
     "dataset": "radiant-ml",
-    "address": "f1p3l3wgnfukemmaupqecwcoqp7fcgjcqgqcq7rja",
+    "address": ["f1p3l3wgnfukemmaupqecwcoqp7fcgjcqgqcq7rja"],
     "dir": "/mnt/delta-datasets/radiant-poc",
     "ignore": false
   },
   {
     "dataset": "cancer-imaging-archive",
-    "address": "f1p3l3wgnfukemmaupqecwcoqp7fcgjcqgqcq7rja",
+    "address": ["f1p3l3wgnfukemmaupqecwcoqp7fcgjcqgqcq7rja", "f2vyp7qmi4pvuj3f3qiha6oyskrjdho2xw6cjiexi"],
     "dir": "/mnt/delta-datasets/cancer-imaging-archive",
     "ignore": true
   }
