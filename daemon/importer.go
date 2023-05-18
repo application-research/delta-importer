@@ -58,7 +58,7 @@ func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 var cidsAlreadyAttempted = make(map[string]bool)
 
 func importerDefault(cfg Config, ds Dataset, boost *svc.BoostConnection) *svc.ImportResult {
-	toImport := boost.GetDealsAwaitingImport(ds.Address)
+	toImport := boost.GetDealsAwaitingImport(ds.Addresses)
 
 	if len(toImport) == 0 {
 		log.Debugf("skipping dataset %s : no deals awaiting import", ds.Dataset)
