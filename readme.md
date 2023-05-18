@@ -82,6 +82,8 @@ delta-importer daemon \
 
 > Hint: Obtain the `boost-auth-token` by running the `boostd auth create-token --perm admin` command on your Boost node.
 
+> Hint: Obtain the boost-url and boost-port by running `boostd auth api-info --perm admin` on your Boost node.
+
 > Hint: The `--interval` and `--max_concurrent` flags are used to tweak the importer's speed. These parameters should be carefully tuned to match the provider's sealing throughput and available bandwidth. The example provided above is a good starting point for a provider with approximately 10TiB/day of sealing throughput.
 
 ### datasets.json

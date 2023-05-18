@@ -163,6 +163,8 @@ func (bc *BoostConnection) GetDealsCompleted(clientAddress string) BoostDeals {
 }
 
 func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
+	var inPipeline []Deal
+
 	graphqlRequestSealing := graphql.NewRequest(`
 	{
 		deals(filter: {Checkpoint: IndexedAndAnnounced}, limit: 2000) {
@@ -179,7 +181,6 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		panic(err)
 	}
 
-	var inPipeline []Deal
 	for _, deal := range graphqlResponseSealing.Deals.Deals {
 		// Disregard deals that are complete (proving), removed, or failed to terminate as they are not in the pipeline
 		if deal.Message != "Sealer: Proving" && deal.Message != "Sealer: Removed" && deal.Message != "Sealer: TerminateFailed" {
@@ -207,6 +208,30 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 	// Add deals that are awaiting publish confirmation- they will soon start sealing
 	for _, deal := range graphqlResponsePublished.Deals.Deals {
 		if deal.Message == "Awaiting Publish Confirmation" {
+			inPipeline = append(inPipeline, deal)
+		}
+	}
+
+	// Also account for deals that are adding to sector
+	graphqlRequestPublishConfirmed := graphql.NewRequest(`
+		{
+			deals(filter: {Checkpoint: PublishConfirmed}, limit: 2000) {
+				deals {
+					ID
+					Message
+					PieceCid
+				}
+			}
+		}
+		`)
+	var graphqlResponsePublishConfirmed Data
+	if err := bc.bgql.Run(context.Background(), graphqlRequestPublishConfirmed, &graphqlResponsePublishConfirmed); err != nil {
+		panic(err)
+	}
+
+	// Add deals that are Adding to Sector - they will soon start sealing
+	for _, deal := range graphqlResponsePublishConfirmed.Deals.Deals {
+		if deal.Message == "Adding to Sector" {
 			inPipeline = append(inPipeline, deal)
 		}
 	}
