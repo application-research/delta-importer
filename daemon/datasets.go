@@ -15,7 +15,7 @@ import (
 
 type Dataset struct {
 	Dataset             string          `json:"dataset"`
-	Address             string          `json:"address"`
+	Addresses           []string        `json:"address"`
 	Dir                 string          `json:"dir"`
 	Ignore              bool            `json:"ignore,omitempty"`
 	alreadyImportedCids map[string]bool `json:"omitempty"`
@@ -86,7 +86,13 @@ func (d *Dataset) PopulateAlreadyImportedCids(boost *svc.BoostConnection) {
 		return
 	}
 
-	completedDeals := boost.GetDealsCompleted(d.Address)
+	var completedDeals svc.BoostDeals
+
+	for _, addr := range d.Addresses {
+		cd := boost.GetDealsCompleted(addr)
+		completedDeals = append(completedDeals, cd...)
+
+	}
 	log.Debugf("found %d completed deals for dataset %s", len(completedDeals), d.Dataset)
 
 	for _, deal := range completedDeals {

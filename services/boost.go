@@ -97,8 +97,11 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 // Get deals that are offiline, in the "accepted" state, and not yet imported
 // Clientaddress can be used to filter the deals, but is not required (will return all deals)
 // Note: limits to 100 deals
-func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDeals {
-	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
+func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostDeals {
+	var deals []Deal
+
+	for _, address := range clientAddress {
+		graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
 		deals(filter: {Checkpoint: Accepted, IsOffline: true}, query: "%s", limit: 100) {
 			deals {
@@ -114,15 +117,18 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress string) BoostDea
 			}
 		}
 	}
-	`, clientAddress))
-	var graphqlResponse Data
-	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
-		panic(err)
+	`, address))
+		var gqlResponse Data
+		if err := bc.bgql.Run(context.Background(), graphqlRequest, &gqlResponse); err != nil {
+			panic(err)
+		}
+
+		deals = append(deals, gqlResponse.Deals.Deals...)
 	}
 
 	var toImport []Deal
 
-	for _, deal := range graphqlResponse.Deals.Deals {
+	for _, deal := range deals {
 		// Only check:
 		// - Deals where the inbound path has not been set (has not been imported yet)
 		// - Deals that are not running CommP verification (this indicates they have already been imported)
