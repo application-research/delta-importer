@@ -23,6 +23,7 @@ type DbImportedDeal struct {
 	Mode        string `json:"mode"`
 	Size        int64  `json:"size"`
 	Message     string `json:"message"`
+	Published   bool   `json:"published"`
 	CreatedDate string `json:"created_date"`
 }
 
@@ -153,7 +154,7 @@ func (d *DIDB) GetDeals(state string) (*[]DbImportedDeal, error) {
 
 	for rows.Next() {
 		var deal DbImportedDeal
-		err = rows.Scan(&deal.Id, &deal.DealUuid, &deal.CommP, &deal.State, &deal.Mode, &deal.Size, &deal.Message, &deal.CreatedDate)
+		err = rows.Scan(&deal.Id, &deal.DealUuid, &deal.CommP, &deal.State, &deal.Mode, &deal.Size, &deal.Message, &deal.Published, &deal.CreatedDate)
 		if err != nil {
 			return nil, fmt.Errorf("scan pending deals: %w", err)
 		}
