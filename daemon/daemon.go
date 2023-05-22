@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/application-research/delta-importer/daemon/api"
 	"github.com/application-research/delta-importer/db"
+	didb "github.com/application-research/delta-importer/db"
+	svc "github.com/application-research/delta-importer/services"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -50,4 +53,44 @@ func RunDaemon(cctx *cli.Context) error {
 		importer(cfg, db, ds)
 		time.Sleep(time.Second * time.Duration(cfg.Interval))
 	}
+}
+
+func reconcileImportedDeals(cfg Config, db *db.DIDB) {
+	pendingDeals, err := db.GetDeals(didb.PENDING)
+
+	if err != nil {
+		log.Errorf("error getting pending deals: %s", err)
+	}
+
+	boost, err := svc.NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
+	if err != nil {
+		log.Errorf("error creating boost connection: %s", err.Error())
+		return
+	}
+	defer boost.Close()
+
+	for _, d := range *pendingDeals {
+		deal, err := boost.GetDeal(d.DealUuid)
+		if err != nil {
+			log.Errorf("error getting deal %s: %s", d.DealUuid, err)
+			continue
+		}
+
+		switch {
+		case deal.Message == "Sealer: Proving":
+			err = db.UpdateDeal(d.DealUuid, didb.SUCCESS, "")
+			if err != nil {
+				log.Errorf("error updating deal %s status to success: %s", d.DealUuid, err)
+			}
+		case strings.HasPrefix(deal.Message, "Error"):
+			err = db.UpdateDeal(d.DealUuid, didb.FAILURE, "")
+			if err != nil {
+				log.Errorf("error updating deal %s status to failed: %s", d.DealUuid, err)
+			}
+		default:
+			// No change, still pending
+			log.Debugf("deal %s has status %s", d.DealUuid, deal.Message)
+		}
+	}
+
 }

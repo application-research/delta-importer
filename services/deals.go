@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"regexp"
 	"strconv"
 
@@ -9,29 +8,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func UnmarshalDeals(data []byte) (DealsJson, error) {
-	var r DealsJson
-	err := json.Unmarshal(data, &r)
-	return r, err
+type MultiDealsResponseJson struct {
+	Data MultiDealsResponseData `json:"deals"`
 }
 
-func (r *DealsJson) Marshal() ([]byte, error) {
-	return json.Marshal(r)
-}
-
-type DealsJson struct {
-	Data Data `json:"data"`
-}
-
-type Data struct {
-	Deals DealsClass `json:"deals"`
-}
-
-type DealsClass struct {
+type MultiDealsResponseData struct {
 	Deals Deals `json:"deals"`
 }
 
 type Deals []Deal
+
+type SingleDealResponseJson struct {
+	Data SingleDealResponseData `json:"data"`
+}
+
+type SingleDealResponseData struct {
+	Deal Deal `json:"deal"`
+}
 
 type Deal struct {
 	ID              string     `json:"ID"`
