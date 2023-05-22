@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/application-research/delta-importer/util"
+
 	log "github.com/sirupsen/logrus"
 )
 
