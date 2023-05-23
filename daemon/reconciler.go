@@ -11,21 +11,23 @@ import (
 )
 
 type DealReconciler struct {
-	cfg Config
-	db  *db.DIDB
+	cfg      Config
+	db       *db.DIDB
+	interval uint
 }
 
 func NewDealReconciler(cfg Config, db *db.DIDB) *DealReconciler {
 	return &DealReconciler{
-		cfg: cfg,
-		db:  db,
+		cfg:      cfg,
+		db:       db,
+		interval: cfg.Interval * 5, // Reconcile every 5 deal imports, should be reasonable
 	}
 }
 
 func (dr *DealReconciler) Run() {
 	for {
 		dr.reconcileImportedDeals()
-		time.Sleep(time.Second * time.Duration(dr.cfg.Interval) * 5)
+		time.Sleep(time.Second * time.Duration(dr.interval))
 	}
 }
 
