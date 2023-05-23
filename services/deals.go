@@ -9,27 +9,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type MultiDealsResponseJson struct {
-	Data MultiDealsResponseData `json:"deals"`
+type DealsResponseJson struct {
+	Data DealsResponseData `json:"deals"`
 }
 
-type MultiDealsResponseData struct {
+type DealsResponseData struct {
 	Deals Deals `json:"deals"`
 }
 
 type Deals []Deal
 
-type SingleDealResponseJson struct {
-	Data SingleDealResponseData `json:"data"`
-}
-
-type SingleDealResponseData struct {
-	Deal Deal `json:"deal"`
-}
-
 type Deal struct {
 	ID              string     `json:"ID"`
-	CreatedAt       string     `json:"CreatedAt"`
 	Message         string     `json:"Message"`
 	PieceCid        string     `json:"PieceCid"`
 	IsOffline       bool       `json:"IsOffline"`

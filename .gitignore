@@ -1,2 +1,4 @@
 delta-importer
 datasets.json
+test.sh
+delta-importer.db

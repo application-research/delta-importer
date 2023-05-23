@@ -34,6 +34,8 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	}
 
 	graphqlClient := graphql.NewClient("http://" + boostAddress + ":" + gqlPort + "/graphql/query")
+	// Comment in to see detailed gql debugging - produces lots of output
+	// graphqlClient.Log = func(s string) { log.Debug(s) }
 
 	bc := &BoostConnection{
 		bapi:  api,
@@ -98,7 +100,8 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 func (bc *BoostConnection) GetDeal(dealID string) (Deal, error) {
 	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
 	{
-			deal(id: "%s") {
+			deals(query: "%s") {
+				deals {
 					ID
 					Message
 					PieceCid
@@ -108,19 +111,24 @@ func (bc *BoostConnection) GetDeal(dealID string) (Deal, error) {
 					StartEpoch
 					InboundFilePath
 					Err
+				}
 			}
 	}
 	`, dealID))
-	var graphqlResponse SingleDealResponseJson
+
+	// ? for some reason, this graphql library is incapable of unmarshaling a single deal - it always returns the zero value
+	// Thus, we aren't able to do the simpler `deal (id: %s) {...}` query, as it always results in an empty result
+	// This must be a bug, so as a workaround we run a `deals` query using the ID, and take the first (and only) result
+	var graphqlResponse DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 		return Deal{}, err
 	}
 
-	if graphqlResponse.Data.Deal.ID == "" {
+	if len(graphqlResponse.Data.Deals) < 1 {
 		return Deal{}, fmt.Errorf("deal %s not found", dealID)
 	}
 
-	return graphqlResponse.Data.Deal, nil
+	return graphqlResponse.Data.Deals[0], nil
 }
 
 // Get deals that are offiline, in the "accepted" state, and not yet imported
@@ -148,7 +156,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostD
 	}
 	`, address))
 
-		var graphqlResponse MultiDealsResponseJson
+		var graphqlResponse DealsResponseJson
 		if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 			panic(err)
 		}
@@ -180,7 +188,7 @@ func (bc *BoostConnection) GetDealsCompleted(clientAddress string) BoostDeals {
 	}
 	`, clientAddress))
 
-	var graphqlResponseCompleted MultiDealsResponseJson
+	var graphqlResponseCompleted DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponseCompleted); err != nil {
 		panic(err)
 	}
@@ -209,7 +217,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		}
 	}
 	`)
-	var graphqlResponseSealing MultiDealsResponseJson
+	var graphqlResponseSealing DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestSealing, &graphqlResponseSealing); err != nil {
 		panic(err)
 	}
@@ -233,7 +241,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		}
 	}
 	`)
-	var graphqlResponsePublished MultiDealsResponseJson
+	var graphqlResponsePublished DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestPublished, &graphqlResponsePublished); err != nil {
 		panic(err)
 	}
@@ -257,7 +265,7 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 			}
 		}
 		`)
-	var graphqlResponsePublishConfirmed MultiDealsResponseJson
+	var graphqlResponsePublishConfirmed DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestPublishConfirmed, &graphqlResponsePublishConfirmed); err != nil {
 		panic(err)
 	}
@@ -291,7 +299,7 @@ func (bc *BoostConnection) GetDealsForContent(cid string) Deals {
 	}
 	`, cid))
 
-	var graphqlResponse MultiDealsResponseJson
+	var graphqlResponse DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 		panic(err)
 	}
