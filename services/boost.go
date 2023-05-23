@@ -127,7 +127,6 @@ func (bc *BoostConnection) GetDeal(dealID string) (Deal, error) {
 // Clientaddress can be used to filter the deals, but is not required (will return all deals)
 // Note: limits to 100 deals
 func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostDeals {
-	var deals []Deal
 	var toImport []Deal
 
 	for _, address := range clientAddress {
@@ -154,7 +153,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostD
 			panic(err)
 		}
 
-		for _, deal := range deals {
+		for _, deal := range graphqlResponse.Data.Deals {
 			// Only check:
 			// - Deals where the inbound path has not been set (has not been imported yet)
 			// - Deals that are not running CommP verification (this indicates they have already been imported)
@@ -164,6 +163,7 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostD
 		}
 
 	}
+
 	return toImport
 }
 
