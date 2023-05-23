@@ -23,6 +23,7 @@ type DbImportedDeal struct {
 	Mode        string `json:"mode"`
 	Size        int64  `json:"size"`
 	Message     string `json:"message"`
+	Published   bool   `json:"published"`
 	CreatedDate string `json:"created_date"`
 }
 
@@ -78,6 +79,15 @@ func (d *DIDB) InsertDeal(dealUuid string, commP string, success bool, mode stri
 	return nil
 }
 
+func (d *DIDB) UpdateDeal(dealUuid string, state string, message string) error {
+	_, err := d.db.Exec("UPDATE imported_deals SET state = ?, message = ? WHERE deal_uuid = ?", state, message, dealUuid)
+
+	if err != nil {
+		return fmt.Errorf("update deal: %w", err)
+	}
+	return nil
+}
+
 type DealStats struct {
 	TotalImported Stat      `json:"total_imported"`
 	Pending       Stat      `json:"pending"`
@@ -126,4 +136,31 @@ func (d *DIDB) GetDealStats() (DealStats, error) {
 	}
 
 	return stats, nil
+}
+
+func (d *DIDB) GetDeals(state string) (*[]DbImportedDeal, error) {
+	var deals []DbImportedDeal
+
+	q := "SELECT * FROM imported_deals"
+	if state != "" {
+		q += " WHERE state = ?"
+	}
+
+	rows, err := d.db.Query(q, PENDING)
+
+	if err != nil {
+		return nil, fmt.Errorf("get pending deals: %w", err)
+	}
+
+	for rows.Next() {
+		var deal DbImportedDeal
+		err = rows.Scan(&deal.Id, &deal.DealUuid, &deal.CommP, &deal.State, &deal.Mode, &deal.Size, &deal.Message, &deal.Published, &deal.CreatedDate)
+		if err != nil {
+			return nil, fmt.Errorf("scan pending deals: %w", err)
+		}
+		deals = append(deals, deal)
+	}
+
+	return &deals, nil
+
 }

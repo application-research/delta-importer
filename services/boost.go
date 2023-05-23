@@ -34,6 +34,8 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	}
 
 	graphqlClient := graphql.NewClient("http://" + boostAddress + ":" + gqlPort + "/graphql/query")
+	// Comment in to see detailed gql debugging - produces lots of output
+	// graphqlClient.Log = func(s string) { log.Debug(s) }
 
 	bc := &BoostConnection{
 		bapi:  api,
@@ -94,11 +96,46 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 	}
 }
 
+// Get a deal by its ID
+func (bc *BoostConnection) GetDeal(dealID string) (Deal, error) {
+	graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
+	{
+			deals(query: "%s") {
+				deals {
+					ID
+					Message
+					PieceCid
+					IsOffline
+					ClientAddress
+					Checkpoint
+					StartEpoch
+					InboundFilePath
+					Err
+				}
+			}
+	}
+	`, dealID))
+
+	// ? for some reason, this graphql library is incapable of unmarshaling a single deal - it always returns the zero value
+	// Thus, we aren't able to do the simpler `deal (id: %s) {...}` query, as it always results in an empty result
+	// This must be a bug, so as a workaround we run a `deals` query using the ID, and take the first (and only) result
+	var graphqlResponse DealsResponseJson
+	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+		return Deal{}, err
+	}
+
+	if len(graphqlResponse.Data.Deals) < 1 {
+		return Deal{}, fmt.Errorf("deal %s not found", dealID)
+	}
+
+	return graphqlResponse.Data.Deals[0], nil
+}
+
 // Get deals that are offiline, in the "accepted" state, and not yet imported
 // Clientaddress can be used to filter the deals, but is not required (will return all deals)
 // Note: limits to 100 deals
 func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostDeals {
-	var deals []Deal
+	var toImport []Deal
 
 	for _, address := range clientAddress {
 		graphqlRequest := graphql.NewRequest(fmt.Sprintf(`
@@ -118,23 +155,21 @@ func (bc *BoostConnection) GetDealsAwaitingImport(clientAddress []string) BoostD
 		}
 	}
 	`, address))
-		var gqlResponse Data
-		if err := bc.bgql.Run(context.Background(), graphqlRequest, &gqlResponse); err != nil {
+
+		var graphqlResponse DealsResponseJson
+		if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 			panic(err)
 		}
 
-		deals = append(deals, gqlResponse.Deals.Deals...)
-	}
-
-	var toImport []Deal
-
-	for _, deal := range deals {
-		// Only check:
-		// - Deals where the inbound path has not been set (has not been imported yet)
-		// - Deals that are not running CommP verification (this indicates they have already been imported)
-		if deal.InboundFilePath == "" && deal.Message != "Verifying Commp" {
-			toImport = append(toImport, deal)
+		for _, deal := range graphqlResponse.Data.Deals {
+			// Only check:
+			// - Deals where the inbound path has not been set (has not been imported yet)
+			// - Deals that are not running CommP verification (this indicates they have already been imported)
+			if deal.InboundFilePath == "" && deal.Message != "Verifying Commp" {
+				toImport = append(toImport, deal)
+			}
 		}
+
 	}
 
 	return toImport
@@ -153,13 +188,13 @@ func (bc *BoostConnection) GetDealsCompleted(clientAddress string) BoostDeals {
 	}
 	`, clientAddress))
 
-	var graphqlResponseCompleted Data
+	var graphqlResponseCompleted DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponseCompleted); err != nil {
 		panic(err)
 	}
 
 	var completed []Deal
-	for _, deal := range graphqlResponseCompleted.Deals.Deals {
+	for _, deal := range graphqlResponseCompleted.Data.Deals {
 		if deal.Message == "Sealer: Proving" {
 			completed = append(completed, deal)
 		}
@@ -182,12 +217,12 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		}
 	}
 	`)
-	var graphqlResponseSealing Data
+	var graphqlResponseSealing DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestSealing, &graphqlResponseSealing); err != nil {
 		panic(err)
 	}
 
-	for _, deal := range graphqlResponseSealing.Deals.Deals {
+	for _, deal := range graphqlResponseSealing.Data.Deals {
 		// Disregard deals that are complete (proving), removed, or failed to terminate as they are not in the pipeline
 		if deal.Message != "Sealer: Proving" && deal.Message != "Sealer: Removed" && deal.Message != "Sealer: TerminateFailed" {
 			inPipeline = append(inPipeline, deal)
@@ -206,13 +241,13 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 		}
 	}
 	`)
-	var graphqlResponsePublished Data
+	var graphqlResponsePublished DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestPublished, &graphqlResponsePublished); err != nil {
 		panic(err)
 	}
 
 	// Add deals that are awaiting publish confirmation- they will soon start sealing
-	for _, deal := range graphqlResponsePublished.Deals.Deals {
+	for _, deal := range graphqlResponsePublished.Data.Deals {
 		if deal.Message == "Awaiting Publish Confirmation" {
 			inPipeline = append(inPipeline, deal)
 		}
@@ -230,13 +265,13 @@ func (bc *BoostConnection) GetDealsInPipeline() BoostDeals {
 			}
 		}
 		`)
-	var graphqlResponsePublishConfirmed Data
+	var graphqlResponsePublishConfirmed DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequestPublishConfirmed, &graphqlResponsePublishConfirmed); err != nil {
 		panic(err)
 	}
 
 	// Add deals that are Adding to Sector - they will soon start sealing
-	for _, deal := range graphqlResponsePublishConfirmed.Deals.Deals {
+	for _, deal := range graphqlResponsePublishConfirmed.Data.Deals {
 		if deal.Message == "Adding to Sector" {
 			inPipeline = append(inPipeline, deal)
 		}
@@ -264,12 +299,12 @@ func (bc *BoostConnection) GetDealsForContent(cid string) Deals {
 	}
 	`, cid))
 
-	var graphqlResponse Data
+	var graphqlResponse DealsResponseJson
 	if err := bc.bgql.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
 		panic(err)
 	}
 
-	return graphqlResponse.Deals.Deals
+	return graphqlResponse.Data.Deals
 }
 
 // Repeatedly attempts to wait, then query for a CID, returning an error if not found after 3 retries

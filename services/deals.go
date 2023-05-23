@@ -1,33 +1,19 @@
 package services
 
 import (
-	"encoding/json"
 	"regexp"
 	"strconv"
 
 	"github.com/application-research/delta-importer/util"
+
 	log "github.com/sirupsen/logrus"
 )
 
-func UnmarshalDeals(data []byte) (DealsJson, error) {
-	var r DealsJson
-	err := json.Unmarshal(data, &r)
-	return r, err
+type DealsResponseJson struct {
+	Data DealsResponseData `json:"deals"`
 }
 
-func (r *DealsJson) Marshal() ([]byte, error) {
-	return json.Marshal(r)
-}
-
-type DealsJson struct {
-	Data Data `json:"data"`
-}
-
-type Data struct {
-	Deals DealsClass `json:"deals"`
-}
-
-type DealsClass struct {
+type DealsResponseData struct {
 	Deals Deals `json:"deals"`
 }
 
@@ -35,7 +21,6 @@ type Deals []Deal
 
 type Deal struct {
 	ID              string     `json:"ID"`
-	CreatedAt       string     `json:"CreatedAt"`
 	Message         string     `json:"Message"`
 	PieceCid        string     `json:"PieceCid"`
 	IsOffline       bool       `json:"IsOffline"`

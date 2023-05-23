@@ -45,6 +45,9 @@ func RunDaemon(cctx *cli.Context) error {
 
 	go api.InitializeEchoRouterConfig(db, cfg.Port)
 
+	dr := NewDealReconciler(cfg, db)
+	go dr.Run()
+
 	for {
 		log.Debugf("running import...")
 		importer(cfg, db, ds)
