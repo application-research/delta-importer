@@ -80,11 +80,13 @@ delta-importer daemon \
   --mode default  
 ```
 
-> Hint: Obtain the `boost-auth-token` by running the `boostd auth create-token --perm admin` command on your Boost node.
 
-> Hint: Obtain the boost-url and boost-port by running `boostd auth api-info --perm admin` on your Boost node.
-
-> Hint: The `--interval` and `--max_concurrent` flags are used to tweak the importer's speed. These parameters should be carefully tuned to match the provider's sealing throughput and available bandwidth. The example provided above is a good starting point for a provider with approximately 10TiB/day of sealing throughput.
+#### Daemon Command Flags
+- Obtain the `boost-auth-token` by running the `boostd auth create-token --perm admin` command on your Boost node.
+- Obtain the `boost-url` and `boost-port` by running `boostd auth api-info --perm admin` on your Boost node.
+- The `--interval` and `--max_concurrent` flags are used to tweak the importer's speed. These parameters should be carefully tuned to match the provider's sealing throughput and available bandwidth. The example provided above is a good starting point for a provider with approximately 10TiB/day of sealing throughput.
+- See *Operational Modes* below for explanation of the `--mode` flag
+- Set the `--staging-dir` flag to have Delta Importer automatically copy carfiles to a staging directory before importing them. This is useful if your carfiles reside on a slower or remote filesystem, as Boost needs to read them twice (once for CommP verification, and once for AddPiece). If this is set, the carfiles will be automatically deleted from after import is complete.
 
 ### datasets.json
 The `datasets.json` file is required to be present in the `delta-importer` data directory (defaults to `~/delta/importer/`). This file maintains a mapping between client `wallets` (i.e, who is making deals) with a `dataset slug` (identifier), and a directory to search for CAR files to import.

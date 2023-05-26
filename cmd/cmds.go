@@ -84,6 +84,11 @@ func SetupCommands() []*cli.Command {
 				EnvVars:     []string{"MODE"},
 			},
 			&cli.StringFlag{
+				Name:    "staging-dir",
+				Usage:   "directory to use for carfile staging",
+				EnvVars: []string{"STAGING_DIR"},
+			},
+			&cli.StringFlag{
 				Name:    "log",
 				Usage:   "log file to write to",
 				EnvVars: []string{"LOG"},

@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -69,4 +70,32 @@ func BytesToReadable(bytes int64) string {
 	size := float64(bytes) / float64(div)
 	suffix := []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
 	return fmt.Sprintf("%.1f %s", size, suffix[exp])
+}
+
+// CopyFile copies a file from src to dst
+func CopyFile(src string, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+
+	err = out.Sync()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
