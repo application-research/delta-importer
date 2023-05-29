@@ -14,7 +14,7 @@ import (
 func importer(cfg Config, db *db.DIDB, datasets map[string]Dataset) {
 	// We construct a new Boost connection at each run of the importer, as this is resilient in case boost is down/restarts
 	// It will simply re-connect upon the next run of the importer
-	boost, err := svc.NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey)
+	boost, err := svc.NewBoostConnection(cfg.BoostAddress, cfg.BoostPort, cfg.BoostGqlPort, cfg.BoostAPIKey, cfg.StagingDir)
 	if err != nil {
 		log.Errorf("error creating boost connection: %s", err.Error())
 		return

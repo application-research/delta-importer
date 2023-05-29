@@ -38,7 +38,7 @@ func (dr *DealReconciler) reconcileImportedDeals() {
 		log.Errorf("error getting pending deals: %s", err)
 	}
 
-	boost, err := svc.NewBoostConnection(dr.cfg.BoostAddress, dr.cfg.BoostPort, dr.cfg.BoostGqlPort, dr.cfg.BoostAPIKey)
+	boost, err := svc.NewBoostConnection(dr.cfg.BoostAddress, dr.cfg.BoostPort, dr.cfg.BoostGqlPort, dr.cfg.BoostAPIKey, dr.cfg.StagingDir)
 	if err != nil {
 		log.Errorf("error creating boost connection: %s", err.Error())
 		return

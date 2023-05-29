@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/application-research/delta-importer/util"
@@ -16,14 +17,15 @@ import (
 )
 
 type BoostConnection struct {
-	bapi  bapi.BoostStruct
-	bgql  *graphql.Client
-	close jsonrpc.ClientCloser
+	bapi       bapi.BoostStruct
+	bgql       *graphql.Client
+	close      jsonrpc.ClientCloser
+	stagingDir string
 }
 
 type BoostDeals []Deal
 
-func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, boostAuthToken string) (*BoostConnection, error) {
+func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, boostAuthToken string, stagingDir string) (*BoostConnection, error) {
 	headers := http.Header{"Authorization": []string{"Bearer " + boostAuthToken}}
 	ctx := context.Background()
 
@@ -38,9 +40,10 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	// graphqlClient.Log = func(s string) { log.Debug(s) }
 
 	bc := &BoostConnection{
-		bapi:  api,
-		bgql:  graphqlClient,
-		close: close,
+		bapi:       api,
+		bgql:       graphqlClient,
+		close:      close,
+		stagingDir: stagingDir,
 	}
 
 	return bc, nil
@@ -58,12 +61,29 @@ type ImportResult struct {
 	Message    string
 }
 
+// ImportCar imports a car file into boost
+// Returns the deal uuid, commP, and whether the import was successful along with any error message
+// If stagingDir is set, the car file will be copied to the staging dir before being imported
 func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceCid string, dealUuid uuid.UUID) ImportResult {
 	log.Debugf("importing uuid %v from %v", dealUuid, carFile)
+	inStaging := false
+
+	if bc.stagingDir != "" {
+		// Copy car file to staging dir
+		stagingFile := filepath.Join(bc.stagingDir, pieceCid+".car")
+		log.Debugf("copying car file to staging dir %s", stagingFile)
+		err := util.CopyFile(carFile, stagingFile)
+		if err != nil {
+			log.Fatalf("failed to copy car file to staging dir: %s", err)
+		}
+
+		carFile = stagingFile
+		inStaging = true
+	}
 
 	// Deal proposal by deal uuid (v1.2.0 deal)
-	// DeleteAfterImport = false
-	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, false)
+	// DeleteAfterImport true if the carfile is in the staging dir, otherwise false
+	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, inStaging)
 	if err != nil {
 		log.Errorf("failed to execute offline deal: %s", err)
 		return ImportResult{
