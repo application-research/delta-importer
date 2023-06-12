@@ -154,6 +154,8 @@ It will check Boost to ensure duplicate deals are not requested.
 
 When using in either `Pull Mode`, the `--ddm-api` and `--ddm-token` flags are required. These indicate the DDM API endpoint and the API token to use when making deal requests to the DDM API. Contact your DDM administrator for these parameters.
 
+Additionally, `Pull Mode` allows optional specification of `--ddm-delay-start`, which delays the number of days for requested deals start epoch. Valid values are between `1` and `14`, for example `--ddm-delay-start 7`
+
 *example pull mode (Dataset) configuration*
 ```bash
 delta-importer daemon\
@@ -164,6 +166,7 @@ delta-importer daemon\
 --max_concurrent 160 \
 --interval 220 \
 --mode pull-dataset \
+--ddm-delay-start 7 \
 --ddm-api http://ddm-api.delta.store/api/v1/self-service \
 --ddm-token 4b28d311-8be6-48d7-801f-dcb6a87ad49d 
 ```
