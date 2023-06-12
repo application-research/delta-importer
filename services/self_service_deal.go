@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type DDMApi struct {
@@ -22,8 +23,10 @@ type SelfServiceResponse struct {
 
 // Request DDM for a deal for the provided dataset
 // returns the piece CID of the deal if successful
-func (d *DDMApi) RequestDealForDataset(dataset string) (string, error) {
-	resp, closer, err := d.getRequest("/by-dataset/" + dataset)
+func (d *DDMApi) RequestDealForDataset(dataset string, delayStartEpoch uint) (string, error) {
+	delayStart := strconv.FormatUint(uint64(delayStartEpoch), 10)
+
+	resp, closer, err := d.getRequest("/by-dataset/" + dataset + "?start_epoch_delay=" + delayStart)
 
 	if err != nil {
 		return "", fmt.Errorf("could not get deal for dataset %s: %v", dataset, err)
@@ -41,8 +44,10 @@ func (d *DDMApi) RequestDealForDataset(dataset string) (string, error) {
 
 // Request DDM for a deal for the provided cid
 // returns the piece CID of the deal if successful
-func (d *DDMApi) RequestDealForCid(cid string) (string, error) {
-	resp, closer, err := d.getRequest("/by-cid/" + cid)
+func (d *DDMApi) RequestDealForCid(cid string, delayStartEpoch uint) (string, error) {
+	delayStart := strconv.FormatUint(uint64(delayStartEpoch), 10)
+
+	resp, closer, err := d.getRequest("/by-cid/" + cid + "?start_epoch_delay=" + delayStart)
 
 	if err != nil {
 		return "", fmt.Errorf("could not get deal for cid %s: %v", cid, err)

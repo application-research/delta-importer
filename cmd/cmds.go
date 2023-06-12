@@ -76,6 +76,13 @@ func SetupCommands() []*cli.Command {
 				Usage:   "auth token for pull-modes (self-service in DDM)",
 				EnvVars: []string{"DDM_TOKEN"},
 			},
+			&cli.UintFlag{
+				Name:        "ddm-delay-start",
+				Usage:       "# of days to delay start epoch for pull-mode deals",
+				Value:       3,
+				DefaultText: "3",
+				EnvVars:     []string{"DDM_DELAY_START"},
+			},
 			&cli.StringFlag{
 				Name:        "mode",
 				Usage:       "mode of operation (default | pull-dataset | pull-cid)",
