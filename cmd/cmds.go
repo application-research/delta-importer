@@ -78,10 +78,17 @@ func SetupCommands() []*cli.Command {
 			},
 			&cli.UintFlag{
 				Name:        "ddm-delay-start",
-				Usage:       "# of days to delay start epoch for pull-mode deals",
+				Usage:       "# of days to delay start epoch for pull-mode deals (1-14)",
 				Value:       3,
 				DefaultText: "3",
 				EnvVars:     []string{"DDM_DELAY_START"},
+			},
+			&cli.UintFlag{
+				Name:        "ddm-advance-end",
+				Usage:       "# of days to bring forward the end epoch for pull-mode deals (0-20)",
+				Value:       0,
+				DefaultText: "0",
+				EnvVars:     []string{"DDM_ADVANCE_END"},
 			},
 			&cli.StringFlag{
 				Name:        "mode",
