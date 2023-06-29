@@ -25,6 +25,7 @@ type Config struct {
 	DDMURL        string
 	DDMToken      string
 	DDMDelayStart uint
+	DDMAdvanceEnd uint
 	DataDir       string
 	StagingDir    string
 	Log           string
@@ -54,6 +55,7 @@ func CreateConfig(cctx *cli.Context) (Config, error) {
 		DDMURL:        cctx.String("ddm-api"),
 		DDMToken:      cctx.String("ddm-token"),
 		DDMDelayStart: cctx.Uint("ddm-delay-start"),
+		DDMAdvanceEnd: cctx.Uint("ddm-advance-end"),
 		Log:           cctx.String("log"),
 		StagingDir:    cctx.String("staging-dir"),
 		DataDir:       cctx.String("dir"),
