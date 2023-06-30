@@ -122,7 +122,7 @@ func importerPullDataset(cfg Config, ds Dataset, boost *svc.BoostConnection) *sv
 	ddm := svc.NewDDMApi(cfg.DDMURL, cfg.DDMToken)
 
 	log.Infof("requesting deal for dataset %s", ds.Dataset)
-	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset, cfg.DDMDelayStart)
+	pieceCid, err := ddm.RequestDealForDataset(ds.Dataset, cfg.DDMDelayStart, cfg.DDMAdvanceEnd)
 	if err != nil {
 		log.Errorf("error requesting deal for dataset %s: %s", ds.Dataset, err.Error())
 		return nil
@@ -197,7 +197,7 @@ func importerPullCid(cfg Config, ds Dataset, boost *svc.BoostConnection) *svc.Im
 		}
 
 		log.Infof("requesting deal for dataset %s, cid %s", ds.Dataset, cidFromFilename)
-		pieceCid, err := ddm.RequestDealForCid(cidFromFilename, cfg.DDMDelayStart)
+		pieceCid, err := ddm.RequestDealForCid(cidFromFilename, cfg.DDMDelayStart, cfg.DDMAdvanceEnd)
 		if err != nil {
 			log.Errorf("error requesting deal for cid %s: %s", cidFromFilename, err.Error())
 			return nil
