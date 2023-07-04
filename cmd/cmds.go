@@ -102,6 +102,13 @@ func SetupCommands() []*cli.Command {
 				Usage:   "directory to use for carfile staging",
 				EnvVars: []string{"STAGING_DIR"},
 			},
+			&cli.BoolFlag{
+				Name:        "delete-after-import",
+				Usage:       "whether to delete source carfile after import complete",
+				Value:       false,
+				DefaultText: "false",
+				EnvVars:     []string{"DELETE_AFTER_IMPORT"},
+			},
 			&cli.StringFlag{
 				Name:    "log",
 				Usage:   "log file to write to",
