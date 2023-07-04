@@ -17,15 +17,16 @@ import (
 )
 
 type BoostConnection struct {
-	bapi       bapi.BoostStruct
-	bgql       *graphql.Client
-	close      jsonrpc.ClientCloser
-	stagingDir string
+	bapi              bapi.BoostStruct
+	bgql              *graphql.Client
+	close             jsonrpc.ClientCloser
+	stagingDir        string
+	deleteAfterImport bool
 }
 
 type BoostDeals []Deal
 
-func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, boostAuthToken string, stagingDir string) (*BoostConnection, error) {
+func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, boostAuthToken string, stagingDir string, deleteAfterImport bool) (*BoostConnection, error) {
 	headers := http.Header{"Authorization": []string{"Bearer " + boostAuthToken}}
 	ctx := context.Background()
 
@@ -40,10 +41,11 @@ func NewBoostConnection(boostAddress string, boostPort string, gqlPort string, b
 	// graphqlClient.Log = func(s string) { log.Debug(s) }
 
 	bc := &BoostConnection{
-		bapi:       api,
-		bgql:       graphqlClient,
-		close:      close,
-		stagingDir: stagingDir,
+		bapi:              api,
+		bgql:              graphqlClient,
+		close:             close,
+		stagingDir:        stagingDir,
+		deleteAfterImport: deleteAfterImport,
 	}
 
 	return bc, nil
@@ -81,9 +83,12 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 		inStaging = true
 	}
 
+	// Always delete from staging dir. If not in staging but `deleteAfterImport` set, then make Boost delete it
+	shouldDelete := bc.deleteAfterImport || inStaging
+
 	// Deal proposal by deal uuid (v1.2.0 deal)
 	// DeleteAfterImport true if the carfile is in the staging dir, otherwise false
-	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, inStaging)
+	rej, err := bc.bapi.BoostOfflineDealWithData(ctx, dealUuid, carFile, shouldDelete)
 	if err != nil {
 		log.Errorf("failed to execute offline deal: %s", err)
 		return ImportResult{
@@ -106,6 +111,15 @@ func (bc *BoostConnection) ImportCar(ctx context.Context, carFile string, pieceC
 	}
 
 	log.Printf("offline import for deal UUID "+util.Purple+"%s"+util.Reset+" successful!", dealUuid)
+
+	// Remove the source carfile - staging dir will be taken care of by the `shouldDelete` flag
+	if bc.deleteAfterImport && inStaging {
+		log.Debugf("deleting car file %s", carFile)
+		err = util.DeleteFile(carFile)
+		if err != nil {
+			log.Errorf("failed to delete car file: %s", err)
+		}
+	}
 
 	return ImportResult{
 		Successful: true,

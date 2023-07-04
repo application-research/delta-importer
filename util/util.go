@@ -44,6 +44,14 @@ func FileNameFromPath(path string) string {
 	return fileName[0 : len(fileName)-len(fileExt)]
 }
 
+func DeleteFile(path string) error {
+	err := os.Remove(path)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 const FILECOIN_GENESIS_UNIX_EPOCH = 1598306400
 
 func UnixToHeight(unixEpoch int64) int64 {

@@ -13,22 +13,23 @@ import (
 const MIN_SEALING_TIME = time.Duration(4 * time.Hour)
 
 type Config struct {
-	Port          uint
-	BoostAddress  string
-	BoostAPIKey   string
-	BoostPort     string
-	BoostGqlPort  string
-	Debug         bool
-	MaxConcurrent uint
-	Interval      uint
-	Mode          Mode
-	DDMURL        string
-	DDMToken      string
-	DDMDelayStart uint
-	DDMAdvanceEnd uint
-	DataDir       string
-	StagingDir    string
-	Log           string
+	Port              uint
+	BoostAddress      string
+	BoostAPIKey       string
+	BoostPort         string
+	BoostGqlPort      string
+	Debug             bool
+	MaxConcurrent     uint
+	Interval          uint
+	Mode              Mode
+	DDMURL            string
+	DDMToken          string
+	DDMDelayStart     uint
+	DDMAdvanceEnd     uint
+	DataDir           string
+	StagingDir        string
+	DeleteAfterImport bool
+	Log               string
 }
 
 type Mode string
@@ -43,22 +44,23 @@ const (
 func CreateConfig(cctx *cli.Context) (Config, error) {
 
 	config := Config{
-		Port:          cctx.Uint("port"),
-		BoostAddress:  cctx.String("boost-url"),
-		BoostAPIKey:   cctx.String("boost-auth-token"),
-		Debug:         cctx.Bool("debug"),
-		BoostGqlPort:  cctx.String("boost-gql-port"),
-		BoostPort:     cctx.String("boost-port"),
-		MaxConcurrent: cctx.Uint("max_concurrent"),
-		Interval:      cctx.Uint("interval"),
-		Mode:          Mode(cctx.String("mode")),
-		DDMURL:        cctx.String("ddm-api"),
-		DDMToken:      cctx.String("ddm-token"),
-		DDMDelayStart: cctx.Uint("ddm-delay-start"),
-		DDMAdvanceEnd: cctx.Uint("ddm-advance-end"),
-		Log:           cctx.String("log"),
-		StagingDir:    cctx.String("staging-dir"),
-		DataDir:       cctx.String("dir"),
+		Port:              cctx.Uint("port"),
+		BoostAddress:      cctx.String("boost-url"),
+		BoostAPIKey:       cctx.String("boost-auth-token"),
+		Debug:             cctx.Bool("debug"),
+		BoostGqlPort:      cctx.String("boost-gql-port"),
+		BoostPort:         cctx.String("boost-port"),
+		MaxConcurrent:     cctx.Uint("max_concurrent"),
+		Interval:          cctx.Uint("interval"),
+		Mode:              Mode(cctx.String("mode")),
+		DDMURL:            cctx.String("ddm-api"),
+		DDMToken:          cctx.String("ddm-token"),
+		DDMDelayStart:     cctx.Uint("ddm-delay-start"),
+		DDMAdvanceEnd:     cctx.Uint("ddm-advance-end"),
+		Log:               cctx.String("log"),
+		StagingDir:        cctx.String("staging-dir"),
+		DeleteAfterImport: cctx.Bool("delete-after-import"),
+		DataDir:           cctx.String("dir"),
 	}
 
 	// Validation
